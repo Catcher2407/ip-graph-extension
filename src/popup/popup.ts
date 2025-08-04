@@ -1,4 +1,5 @@
-import { connectWalletConnect, disconnectWallet, updateWalletUI, getCurrentWallet } from './modules/wallet-integration';
+// src/popup/popup.ts
+import { connectWallet, disconnectWallet, updateWalletUI, getCurrentWallet } from './modules/wallet-integration';
 import { IPGraphVisualizer } from './modules/ip-graph-visualizer';
 import { StoryAPI } from './modules/story-api';
 
@@ -102,13 +103,14 @@ function initializeWallet(): void {
   const connectBtn = document.getElementById('connect-wallet') as HTMLButtonElement;
   const disconnectBtn = document.getElementById('disconnect-wallet') as HTMLButtonElement;
   
+  // Use the correct function name
   connectBtn?.addEventListener('click', async () => {
-  try {
-    await connectWalletConnect(); // This function now exists
-  } catch (error) {
-    console.error('Failed to connect wallet:', error);
-  }
-});
+    try {
+      await connectWallet(); // Changed from connectWalletConnect
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+    }
+  });
   
   disconnectBtn?.addEventListener('click', async () => {
     try {
