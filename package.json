@@ -10,28 +10,21 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@reown/appkit": "^1.7.18",
-    "@reown/appkit-adapter-wagmi": "^1.7.18",
-    "@tanstack/react-query": "^5.84.1",
-    "@types/chrome": "^0.1.1",
-    "@web3modal/wagmi": "^5.0.0",
-    "d3": "^7.9.0",
-    "viem": "^2.33.2",
-    "wagmi": "^2.16.1"
+    "d3": "^7.8.5",
+    "viem": "^2.0.0",
+    "@walletconnect/sign-client": "^2.10.0",
+    "@walletconnect/utils": "^2.10.0",
+    "@walletconnect/types": "^2.10.0"
   },
   "devDependencies": {
-    "@types/d3": "^7.4.3",
-    "ts-loader": "^9.4.4",
-    "typescript": "^5.1.6",
     "webpack": "^5.88.0",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^5.1.4",
+    "typescript": "^5.1.6",
+    "ts-loader": "^9.4.4",
+    "@types/d3": "^7.4.0",
+    "@types/chrome": "^0.0.246"
   },
-  "keywords": [
-    "story-protocol",
-    "ip",
-    "blockchain",
-    "browser-extension"
-  ],
+  "keywords": ["story-protocol", "ip", "blockchain", "browser-extension"],
   "author": "Your Name",
   "license": "MIT"
 }

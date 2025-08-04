@@ -1,4 +1,8 @@
 // src/popup/modules/wallet-integration.ts
+import SignClient from '@walletconnect/sign-client';
+import { getSdkError } from '@walletconnect/utils';
+import type { SessionTypes } from '@walletconnect/types';
+
 interface WalletInfo {
   address: string;
   balance: string;
@@ -9,57 +13,351 @@ interface WalletInfo {
 }
 
 let currentWallet: WalletInfo | null = null;
+let signClient: SignClient | null = null;
+let session: SessionTypes.Struct | null = null;
 
 // Story Aeneid Testnet configuration
 const STORY_AENEID_CHAIN_ID = 1315;
 const STORY_AENEID_RPC = 'https://aeneid.storyrpc.io';
+const STORY_CHAIN = `eip155:${STORY_AENEID_CHAIN_ID}`;
 
-// Simple wallet connection using window.ethereum (MetaMask/injected wallets)
+// Initialize WalletConnect
+async function initializeWalletConnect(): Promise<void> {
+  try {
+    const projectId = process.env.WALLET_CONNECT_PROJECT_ID || 'YOUR_PROJECT_ID_HERE';
+    
+    if (!projectId || projectId === 'YOUR_PROJECT_ID_HERE') {
+      console.warn('Please set your WalletConnect Project ID in .env file');
+      return;
+    }
+
+    signClient = await SignClient.init({
+      projectId,
+      metadata: {
+        name: 'IP Graph Extension',
+        description: 'Story Protocol IP Analytics & Visualization',
+        url: 'https://story-ip-graph.com',
+        icons: ['https://story-ip-graph.com/icon.png']
+      }
+    });
+
+    // Check for existing sessions
+    const sessions = signClient.session.getAll();
+    if (sessions.length > 0) {
+      session = sessions[sessions.length - 1];
+      await handleExistingSession();
+    }
+
+    setupWalletConnectEvents();
+    
+  } catch (error) {
+    console.error('Failed to initialize WalletConnect:', error);
+  }
+}
+
+function setupWalletConnectEvents(): void {
+  if (!signClient) return;
+
+  signClient.on('session_event', (event) => {
+    console.log('WalletConnect session event:', event);
+  });
+
+  signClient.on('session_update', ({ topic, params }) => {
+    console.log('WalletConnect session update:', { topic, params });
+    const { namespaces } = params;
+    const _session = signClient!.session.get(topic);
+    const updatedSession = { ..._session, namespaces };
+    session = updatedSession;
+  });
+
+  signClient.on('session_delete', () => {
+    console.log('WalletConnect session deleted');
+    handleDisconnection();
+  });
+}
+
+// Connect wallet using WalletConnect
 export async function connectWalletConnect(): Promise<void> {
   try {
-    updateConnectionStatus('connecting', 'Connecting to wallet...');
+    updateConnectionStatus('connecting', 'Initializing WalletConnect...');
     
-    // Check if wallet is available
+    if (!signClient) {
+      await initializeWalletConnect();
+    }
+
+    if (!signClient) {
+      throw new Error('Failed to initialize WalletConnect');
+    }
+
+    updateConnectionStatus('connecting', 'Opening WalletConnect...');
+
+    const { uri, approval } = await signClient.connect({
+      requiredNamespaces: {
+        eip155: {
+          methods: [
+            'eth_sendTransaction',
+            'eth_signTransaction',
+            'eth_sign',
+            'personal_sign',
+            'eth_signTypedData',
+          ],
+          chains: [STORY_CHAIN],
+          events: ['chainChanged', 'accountsChanged'],
+        },
+      },
+    });
+
+    if (uri) {
+      // Create a simple modal with QR code link
+      showWalletConnectModal(uri);
+      updateConnectionStatus('connecting', 'Scan QR code with your wallet...');
+    }
+
+    // Wait for session approval
+    session = await approval();
+    hideWalletConnectModal();
+    await handleSuccessfulConnection();
+
+  } catch (error) {
+    console.error('WalletConnect connection failed:', error);
+    hideWalletConnectModal();
+    updateConnectionStatus('error', 'Connection failed');
+    showConnectionError(error);
+  }
+}
+
+function showWalletConnectModal(uri: string): void {
+  // Create modal overlay
+  const modal = document.createElement('div');
+  modal.id = 'wc-modal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  `;
+
+  const modalContent = document.createElement('div');
+  modalContent.style.cssText = `
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+  `;
+
+  modalContent.innerHTML = `
+    <h3 style="margin-bottom: 20px; color: #333;">Connect Your Wallet</h3>
+    <p style="margin-bottom: 20px; color: #666;">Scan QR code with your mobile wallet or click the button below:</p>
+    <div style="margin-bottom: 20px;">
+      <a href="https://walletconnect.com/qr?uri=${encodeURIComponent(uri)}" target="_blank" 
+         style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; 
+                border-radius: 8px; text-decoration: none; font-weight: 600;">
+        Open WalletConnect
+      </a>
+    </div>
+    <button id="wc-cancel" style="background: #f8f9fa; border: 1px solid #dee2e6; 
+                                   padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+      Cancel
+    </button>
+  `;
+
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+
+  // Add cancel functionality
+  const cancelBtn = document.getElementById('wc-cancel');
+  cancelBtn?.addEventListener('click', () => {
+    hideWalletConnectModal();
+    updateConnectionStatus('connecting', 'Connection cancelled');
+  });
+}
+
+function hideWalletConnectModal(): void {
+  const modal = document.getElementById('wc-modal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+async function handleExistingSession(): Promise<void> {
+  if (!session) return;
+  
+  try {
+    const accounts = Object.values(session.namespaces)
+      .map((namespace: any) => namespace.accounts)
+      .flat();
+    
+    if (accounts.length > 0) {
+      const account = accounts[0];
+      const address = account.split(':')[2];
+      
+      currentWallet = {
+        address,
+        balance: '0.0000',
+        connected: true,
+        chainId: STORY_AENEID_CHAIN_ID,
+        provider: 'WalletConnect',
+        network: 'Story Aeneid Testnet'
+      };
+      
+      updateConnectionStatus('connected', 'Connected via WalletConnect');
+      updateWalletUI();
+      await loadUserIPAssets();
+      
+      // Fetch balance
+      await fetchWalletBalance(address);
+    }
+  } catch (error) {
+    console.error('Error handling existing session:', error);
+  }
+}
+
+async function handleSuccessfulConnection(): Promise<void> {
+  try {
+    if (!session) return;
+    
+    updateConnectionStatus('connecting', 'Fetching wallet details...');
+    
+    const accounts = Object.values(session.namespaces)
+      .map((namespace: any) => namespace.accounts)
+      .flat();
+    
+    if (accounts.length > 0) {
+      const account = accounts[0];
+      const address = account.split(':')[2];
+      
+      currentWallet = {
+        address,
+        balance: '0.0000',
+        connected: true,
+        chainId: STORY_AENEID_CHAIN_ID,
+        provider: 'WalletConnect',
+        network: 'Story Aeneid Testnet'
+      };
+      
+      updateConnectionStatus('connected', 'Connected via WalletConnect');
+      updateWalletUI();
+      await loadUserIPAssets();
+      showSuccessMessage();
+      
+      // Fetch balance
+      await fetchWalletBalance(address);
+    }
+    
+  } catch (error) {
+    console.error('Error handling connection:', error);
+    updateConnectionStatus('error', 'Failed to fetch wallet details');
+  }
+}
+
+async function fetchWalletBalance(address: string): Promise<void> {
+  try {
+    const response = await fetch(STORY_AENEID_RPC, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'eth_getBalance',
+        params: [address, 'latest'],
+        id: 1,
+      }),
+    });
+    
+    const data = await response.json();
+    
+    if (data.result) {
+      const balanceWei = parseInt(data.result, 16);
+      const balanceEth = balanceWei / Math.pow(10, 18);
+      
+      if (currentWallet) {
+        currentWallet.balance = balanceEth.toFixed(4);
+        updateWalletUI();
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch balance:', error);
+  }
+}
+
+function handleDisconnection(): void {
+  session = null;
+  currentWallet = null;
+  updateConnectionStatus('connecting', 'Disconnected');
+  updateWalletUI();
+  
+  const ipDetails = document.getElementById('ip-details');
+  if (ipDetails) {
+    ipDetails.innerHTML = `
+      <div class="placeholder">
+        <span class="placeholder-icon">🎯</span>
+        <p>Connect wallet and search for an IP Asset to see its relationship graph</p>
+      </div>
+    `;
+  }
+  
+  showDisconnectionMessage();
+}
+
+// Disconnect wallet
+export async function disconnectWallet(): Promise<void> {
+  try {
+    if (signClient && session) {
+      await signClient.disconnect({
+        topic: session.topic,
+        reason: getSdkError('USER_DISCONNECTED'),
+      });
+    }
+    handleDisconnection();
+  } catch (error) {
+    console.error('Error disconnecting:', error);
+    handleDisconnection();
+  }
+}
+
+// MetaMask fallback
+async function connectMetaMask(): Promise<void> {
+  try {
     if (typeof (window as any).ethereum === 'undefined') {
-      throw new Error('No wallet found. Please install MetaMask or another Web3 wallet.');
+      throw new Error('MetaMask not found');
     }
 
     const ethereum = (window as any).ethereum;
     
-    // Request account access
     const accounts = await ethereum.request({ 
       method: 'eth_requestAccounts' 
     });
     
     if (accounts.length === 0) {
-      throw new Error('No accounts found. Please unlock your wallet.');
+      throw new Error('No accounts found');
     }
 
     const address = accounts[0];
-    
-    // Get current chain ID
-    const chainId = await ethereum.request({ 
-      method: 'eth_chainId' 
-    });
-    
+    const chainId = await ethereum.request({ method: 'eth_chainId' });
     const currentChainId = parseInt(chainId, 16);
     
-    // Check if we're on Story Aeneid, if not, try to switch
     if (currentChainId !== STORY_AENEID_CHAIN_ID) {
       await switchToStoryAeneid(ethereum);
     }
     
-    // Get balance
     const balance = await ethereum.request({
       method: 'eth_getBalance',
       params: [address, 'latest']
     });
     
-    // Convert balance from wei to ether
     const balanceInEth = parseInt(balance, 16) / Math.pow(10, 18);
     
     currentWallet = {
-      address: address,
+      address,
       balance: balanceInEth.toFixed(4),
       connected: true,
       chainId: STORY_AENEID_CHAIN_ID,
@@ -67,30 +365,23 @@ export async function connectWalletConnect(): Promise<void> {
       network: 'Story Aeneid Testnet'
     };
     
-    updateConnectionStatus('connected', 'Connected to Story Protocol');
+    updateConnectionStatus('connected', 'Connected via MetaMask');
     updateWalletUI();
     await loadUserIPAssets();
     showSuccessMessage();
     
-    // Listen for account/chain changes
-    setupWalletEventListeners(ethereum);
-    
-  } catch (error: any) {
-    console.error('Wallet connection failed:', error);
-    updateConnectionStatus('error', 'Connection failed');
-    showConnectionError(error);
+  } catch (error) {
+    throw error;
   }
 }
 
 async function switchToStoryAeneid(ethereum: any): Promise<void> {
   try {
-    // Try to switch to Story Aeneid
     await ethereum.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: `0x${STORY_AENEID_CHAIN_ID.toString(16)}` }],
     });
   } catch (switchError: any) {
-    // If chain doesn't exist, add it
     if (switchError.code === 4902) {
       await ethereum.request({
         method: 'wallet_addEthereumChain',
@@ -112,66 +403,25 @@ async function switchToStoryAeneid(ethereum: any): Promise<void> {
   }
 }
 
-function setupWalletEventListeners(ethereum: any): void {
-  // Listen for account changes
-  ethereum.on('accountsChanged', (accounts: string[]) => {
-    if (accounts.length === 0) {
-      handleDisconnection();
-    } else {
-      // Account changed, update wallet info
-      const newAddress = accounts[0];
-      if (currentWallet) {
-        currentWallet.address = newAddress;
-        updateWalletUI();
-      }
-    }
-  });
-
-  // Listen for chain changes
-  ethereum.on('chainChanged', (chainId: string) => {
-    const newChainId = parseInt(chainId, 16);
-    if (newChainId !== STORY_AENEID_CHAIN_ID) {
-      showNetworkWarning();
-    }
-  });
-}
-
-function showNetworkWarning(): void {
-  const notification = createNotification('⚠️ Please switch to Story Aeneid Testnet', 'error');
-  document.body.appendChild(notification);
-  
-  setTimeout(() => {
-    notification.remove();
-  }, 5000);
-}
-
-function handleDisconnection(): void {
-  currentWallet = null;
-  updateConnectionStatus('connecting', 'Disconnected');
-  updateWalletUI();
-  
-  const ipDetails = document.getElementById('ip-details');
-  if (ipDetails) {
-    ipDetails.innerHTML = `
-      <div class="placeholder">
-        <span class="placeholder-icon">🎯</span>
-        <p>Connect wallet and search for an IP Asset to see its relationship graph</p>
-      </div>
-    `;
-  }
-  
-  showDisconnectionMessage();
-}
-
-// Disconnect wallet
-export async function disconnectWallet(): Promise<void> {
+// Main connect function with fallback
+export async function connectWallet(): Promise<void> {
   try {
-    handleDisconnection();
-  } catch (error) {
-    console.error('Error disconnecting:', error);
+    // Try WalletConnect first
+    await connectWalletConnect();
+  } catch (wcError) {
+    console.log('WalletConnect failed, trying MetaMask...', wcError);
+    try {
+      // Fallback to MetaMask
+      await connectMetaMask();
+    } catch (mmError) {
+      console.error('Both WalletConnect and MetaMask failed:', mmError);
+      updateConnectionStatus('error', 'Connection failed');
+      showConnectionError(mmError);
+    }
   }
 }
 
+// Rest of the functions...
 export function updateWalletUI(): void {
   const walletStatus = document.getElementById('wallet-status');
   const connectionStatus = document.getElementById('connection-status');
@@ -191,7 +441,7 @@ export function updateWalletUI(): void {
     }
     
     if (connectionStatus) {
-      connectionStatus.textContent = 'Connected to Story Protocol';
+      connectionStatus.textContent = `Connected via ${currentWallet.provider}`;
     }
     
     if (walletAddress) {
@@ -267,10 +517,8 @@ function showConnectionError(error: any): void {
   if (error.message) {
     if (error.message.includes('User rejected')) {
       message = 'Connection cancelled by user.';
-    } else if (error.message.includes('No wallet found')) {
-      message = 'Please install MetaMask or another Web3 wallet.';
-    } else if (error.message.includes('No accounts found')) {
-      message = 'Please unlock your wallet and try again.';
+    } else if (error.message.includes('MetaMask not found')) {
+      message = 'Please install MetaMask or use WalletConnect.';
     }
   }
   
@@ -317,7 +565,6 @@ export async function loadUserIPAssets(): Promise<void> {
   if (!currentWallet?.connected) return;
   
   try {
-    // Mock user IP assets on Story Protocol
     const userAssets = [
       {
         id: '0x1234567890123456789012345678901234567890',
@@ -403,7 +650,10 @@ function searchIP(ipId: string): void {
 
 export { searchIP };
 
-// Add notification animations and styles
+// Initialize WalletConnect when module loads
+initializeWalletConnect();
+
+// Add styles
 const style = document.createElement('style');
 style.textContent = `
   @keyframes slideInRight {

@@ -103,12 +103,12 @@ function initializeWallet(): void {
   const disconnectBtn = document.getElementById('disconnect-wallet') as HTMLButtonElement;
   
   connectBtn?.addEventListener('click', async () => {
-    try {
-      await connectWalletConnect();
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-    }
-  });
+  try {
+    await connectWalletConnect(); // This function now exists
+  } catch (error) {
+    console.error('Failed to connect wallet:', error);
+  }
+});
   
   disconnectBtn?.addEventListener('click', async () => {
     try {
