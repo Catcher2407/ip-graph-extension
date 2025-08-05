@@ -261,6 +261,10 @@ function updateDetailsPanel(ipData: any, relationships: any[]): void {
           <span class="value">${ipData.id}</span>
         </div>
         <div class="info-item">
+          <span class="label">Name:</span>
+          <span class="value">${ipData.name || 'Unknown'}</span>
+        </div>
+        <div class="info-item">
           <span class="label">Owner:</span>
           <span class="value">${ipData.owner || 'Unknown'}</span>
         </div>
@@ -269,13 +273,128 @@ function updateDetailsPanel(ipData: any, relationships: any[]): void {
           <span class="value">${ipData.type || 'IP Asset'}</span>
         </div>
         <div class="info-item">
+          <span class="label">Created:</span>
+          <span class="value">${ipData.createdAt ? new Date(ipData.createdAt).toLocaleDateString() : 'Unknown'}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Revenue:</span>
+          <span class="value">$${(ipData.revenue || 0).toLocaleString()}</span>
+        </div>
+        <div class="info-item">
           <span class="label">Derivatives:</span>
           <span class="value">${relationships.filter(r => r.type === 'derivative').length}</span>
         </div>
       </div>
     </div>
   `;
+
+  // Add metadata section if available
+  if (ipData.metadata) {
+    html += `
+      <div class="metadata-section">
+        <h4>📝 Metadata</h4>
+        <div class="metadata-grid">
+    `;
+    
+    // Display title
+    if (ipData.metadata.title) {
+      html += `
+        <div class="metadata-item">
+          <span class="metadata-label">Title:</span>
+          <span class="metadata-value">${ipData.metadata.title}</span>
+        </div>
+      `;
+    }
+    
+    // Display description
+    if (ipData.metadata.description) {
+      html += `
+        <div class="metadata-item">
+          <span class="metadata-label">Description:</span>
+          <span class="metadata-value">${ipData.metadata.description}</span>
+        </div>
+      `;
+    }
+    
+    // Display image if available
+    if (ipData.metadata.image) {
+      html += `
+        <div class="metadata-item full-width">
+          <span class="metadata-label">Image:</span>
+          <div class="metadata-image">
+            <img src="${ipData.metadata.image}" alt="IP Asset Image" style="max-width: 200px; max-height: 200px; border-radius: 8px; margin-top: 8px;">
+          </div>
+        </div>
+      `;
+    }
+    
+    // Display media URL if available
+    if (ipData.metadata.mediaUrl) {
+      html += `
+        <div class="metadata-item">
+          <span class="metadata-label">Media URL:</span>
+          <span class="metadata-value">
+            <a href="${ipData.metadata.mediaUrl}" target="_blank" style="color: #667eea; text-decoration: none;">
+              ${ipData.metadata.mediaUrl.length > 50 ? ipData.metadata.mediaUrl.substring(0, 50) + '...' : ipData.metadata.mediaUrl}
+            </a>
+          </span>
+        </div>
+      `;
+    }
+    
+    // Display media type
+    if (ipData.metadata.mediaType) {
+      html += `
+        <div class="metadata-item">
+          <span class="metadata-label">Media Type:</span>
+          <span class="metadata-value">${ipData.metadata.mediaType}</span>
+        </div>
+      `;
+    }
+    
+    // Display creators if available
+    if (ipData.metadata.creators && ipData.metadata.creators.length > 0) {
+      html += `
+        <div class="metadata-item full-width">
+          <span class="metadata-label">Creators:</span>
+          <div class="creators-list">
+      `;
+      
+      ipData.metadata.creators.forEach((creator: any) => {
+        html += `
+          <div class="creator-item">
+            <div class="creator-name">${creator.name}</div>
+            <div class="creator-address">${creator.address}</div>
+            ${creator.contributionPercent ? `<div class="creator-contribution">${creator.contributionPercent}% contribution</div>` : ''}
+          </div>
+        `;
+      });
+      
+      html += `
+          </div>
+        </div>
+      `;
+    }
+    
+    // Display tags if available
+    if (ipData.tags && ipData.tags.length > 0) {
+      html += `
+        <div class="metadata-item full-width">
+          <span class="metadata-label">Tags:</span>
+          <div class="tags-container">
+            ${ipData.tags.map((tag: string) => `<span class="tag">${tag}</span>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    html += `
+        </div>
+      </div>
+    `;
+  }
   
+  // Add relationships section
   if (relationships.length > 0) {
     html += `
       <div class="relationships">
@@ -287,7 +406,9 @@ function updateDetailsPanel(ipData: any, relationships: any[]): void {
       html += `
         <div class="relationship-item">
           <span class="rel-type">${rel.type}</span>
-          <span class="rel-target">${rel.target}</span>
+          <span class="rel-target">${rel.target.slice(0, 10)}...${rel.target.slice(-8)}</span>
+          ${rel.name ? `<span class="rel-name">${rel.name}</span>` : ''}
+          ${rel.revenue ? `<span class="rel-revenue">$${rel.revenue.toLocaleString()}</span>` : ''}
         </div>
       `;
     });
