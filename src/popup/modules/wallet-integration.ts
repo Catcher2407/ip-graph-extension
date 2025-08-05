@@ -569,31 +569,76 @@ export async function loadUserIPAssets(): Promise<void> {
   if (!currentWallet?.connected) return;
   
   try {
-    // Mock user IP assets
-    const userAssets = [
-      {
-        id: '0x1234567890123456789012345678901234567890',
-        name: 'My Story IP #1',
-        derivatives: [],
-        totalRevenue: '12.5'
-      },
-      {
-        id: '0x2345678901234567890123456789012345678901',
-        name: 'Creative Collection',
-        derivatives: [{ id: '0x3456' }, { id: '0x7890' }],
-        totalRevenue: '28.7'
-      },
-      {
-        id: '0x3456789012345678901234567890123456789012',
-        name: 'Digital Art Series',
-        derivatives: [{ id: '0xabcd' }],
-        totalRevenue: '15.3'
-      }
-    ];
+    console.log('Loading user IP assets for:', currentWallet.address);
     
-    displayUserAssets(userAssets);
+    // Coba ambil IP assets milik user dari Story API
+    const userAssets = await fetchUserIPAssets(currentWallet.address);
+    
+    if (userAssets.length > 0) {
+      displayUserAssets(userAssets);
+    } else {
+      // Jika tidak ada IP assets, tampilkan pesan kosong
+      displayEmptyState();
+    }
+    
   } catch (error) {
     console.error('Failed to load user IP assets:', error);
+    displayEmptyState();
+  }
+}
+
+async function fetchUserIPAssets(userAddress: string): Promise<any[]> {
+  try {
+    // Coba beberapa endpoint untuk mendapatkan IP assets milik user
+    const endpoints = [
+      `https://api.storyapis.com/assets/owner/${userAddress}`,
+      `https://api.storyapis.com/ip-assets/owner/${userAddress}`,
+      `https://api.storyapis.com/users/${userAddress}/assets`,
+      `https://api.storyapis.com/v1/assets?owner=${userAddress}`
+    ];
+
+    const apiHeaders = {
+      'X-CHAIN': 'story-aeneid',
+      'X-API-Key': 'MhBsxkU1z9fG6TofE59KqiiWV-YlYE8Q4awlLQehF3U',
+      'Content-Type': 'application/json'
+    };
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying user assets endpoint: ${endpoint}`);
+        const response = await fetch(endpoint, {
+          headers: apiHeaders
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('User assets response:', data);
+          
+          // Handle different response formats
+          const assets = Array.isArray(data) ? data : (data.assets || data.data || []);
+          
+          return assets.map((asset: any) => ({
+            id: asset.id || asset.ipId,
+            name: asset.name || asset.metadata?.title || `IP Asset ${asset.id?.slice(0, 8)}...`,
+            derivatives: asset.derivatives || [],
+            totalRevenue: asset.totalRevenue || asset.revenue || '0',
+            type: asset.type || 'IP Asset',
+            createdAt: asset.createdAt,
+            metadata: asset.metadata
+          }));
+        }
+      } catch (endpointError) {
+        console.log(`Endpoint ${endpoint} failed:`, endpointError);
+        continue;
+      }
+    }
+
+    // Jika semua endpoint gagal, return empty array
+    return [];
+    
+  } catch (error) {
+    console.error('Error fetching user IP assets:', error);
+    return [];
   }
 }
 
@@ -603,29 +648,31 @@ function displayUserAssets(assets: any[]): void {
   
   let html = '<div class="user-assets">';
   html += '<h3>📋 Your Story IP Assets</h3>';
+  html += `<div class="assets-count">${assets.length} IP Asset${assets.length !== 1 ? 's' : ''} found</div>`;
   
-  if (assets.length === 0) {
-    html += '<p>You don\'t own any IP Assets on Story Protocol yet.</p>';
-  } else {
-    html += '<div class="assets-list">';
-    assets.forEach(asset => {
-      html += `
-        <div class="asset-item" data-ip-id="${asset.id}">
-          <div class="asset-name">${asset.name || 'Unnamed IP'}</div>
-          <div class="asset-id">${asset.id.slice(0, 10)}...${asset.id.slice(-8)}</div>
-          <div class="asset-stats">
-            <span>📊 Derivatives: ${asset.derivatives?.length || 0}</span>
-            <span>💰 Revenue: ${asset.totalRevenue || '0'} IP</span>
-          </div>
+  html += '<div class="assets-list">';
+  assets.forEach((asset, index) => {
+    html += `
+      <div class="asset-item" data-ip-id="${asset.id}">
+        <div class="asset-header">
+          <div class="asset-name">${asset.name || `IP Asset #${index + 1}`}</div>
+          <div class="asset-type">${asset.type || 'IP Asset'}</div>
         </div>
-      `;
-    });
-    html += '</div>';
-  }
-  
+        <div class="asset-id">${asset.id.slice(0, 10)}...${asset.id.slice(-8)}</div>
+        <div class="asset-stats">
+          <span>📊 Derivatives: ${asset.derivatives?.length || 0}</span>
+          <span>💰 Revenue: ${asset.totalRevenue || '0'} IP</span>
+        </div>
+        ${asset.createdAt ? `<div class="asset-date">Created: ${new Date(asset.createdAt).toLocaleDateString()}</div>` : ''}
+      </div>
+    `;
+  });
   html += '</div>';
+  html += '</div>';
+  
   ipDetails.innerHTML = html;
   
+  // Add click handlers
   const assetItems = document.querySelectorAll('.asset-item');
   assetItems.forEach(item => {
     item.addEventListener('click', (e) => {
@@ -635,6 +682,30 @@ function displayUserAssets(assets: any[]): void {
       }
     });
   });
+}
+
+function displayEmptyState(): void {
+  const ipDetails = document.getElementById('ip-details');
+  if (!ipDetails) return;
+  
+  ipDetails.innerHTML = `
+    <div class="user-assets">
+      <h3>📋 Your Story IP Assets</h3>
+      <div class="empty-state">
+        <div class="empty-icon">🎨</div>
+        <h4>No IP Assets Found</h4>
+        <p>You don't own any IP Assets on Story Protocol yet.</p>
+        <div class="empty-actions">
+          <button class="create-ip-btn" onclick="window.open('https://story.foundation', '_blank')">
+            Create Your First IP
+          </button>
+          <button class="refresh-btn" onclick="loadUserIPAssets()">
+            🔄 Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 export function getCurrentWallet(): WalletInfo | null {

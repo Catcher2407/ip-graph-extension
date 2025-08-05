@@ -765,3 +765,93 @@ body.dark-mode input[type="search"] {
 body.dark-mode input::placeholder {
   color: #94a3b8; /* Light gray placeholder */
 }
+
+/* Wallet Integration Styles */
+.assets-count {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 15px;
+  padding: 8px 12px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.asset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.asset-type {
+  font-size: 10px;
+  background: #667eea;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.asset-date {
+  font-size: 10px;
+  color: #888;
+  margin-top: 6px;
+  text-align: right;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-state h4 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.empty-state p {
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.create-ip-btn, .refresh-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.create-ip-btn {
+  background: #667eea;
+  color: white;
+}
+
+.create-ip-btn:hover {
+  background: #5a67d8;
+}
+
+.refresh-btn {
+  background: #f8f9fa;
+  color: #333;
+  border: 1px solid #dee2e6;
+}
+
+.refresh-btn:hover {
+  background: #e9ecef;
+}
