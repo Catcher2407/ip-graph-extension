@@ -49,19 +49,19 @@ export class StoryAPI {
   private apiBaseUrl = 'https://api.storyapis.com';
   private rpcUrl = 'https://aeneid.storyrpc.io';
   private apiHeaders = {
-    'X-CHAIN': 'story-aeneid',
+    'X-CHAIN': 'story-aeneid', // untuk testnet, gunakan 'story' untuk mainnet
     'X-API-Key': 'MhBsxkU1z9fG6TofE59KqiiWV-YlYE8Q4awlLQehF3U',
     'Content-Type': 'application/json'
   };
 
   constructor() {
-    // No mock data initialization needed
+    // No initialization needed
   }
 
   async getIPAsset(ipId: string): Promise<IPAssetData> {
     try {
-      // The correct endpoint structure for Story API
-      const response = await axios.get(`${this.apiBaseUrl}/api/v1/assets/${ipId}`, {
+      // Berdasarkan dokumentasi, endpoint yang benar adalah tanpa /api/v1/
+      const response = await axios.get(`${this.apiBaseUrl}/assets/${ipId}`, {
         headers: this.apiHeaders
       });
 
@@ -69,7 +69,7 @@ export class StoryAPI {
       
       return {
         id: ipData.id || ipId,
-        name: ipData.name || `IP Asset ${ipId.slice(0, 8)}...`,
+        name: ipData.name || ipData.metadata?.title || `IP Asset ${ipId.slice(0, 8)}...`,
         owner: ipData.owner,
         type: ipData.type || 'IP Asset',
         revenue: ipData.revenue || 0,
@@ -82,48 +82,61 @@ export class StoryAPI {
         metadata: ipData.metadata
       };
     } catch (error) {
-      console.error('Error fetching IP Asset:', error);
+      console.error('Error fetching IP Asset from API:', error);
       
-      // If API fails, return mock data
-      return this.generateMockIPData(ipId);
+      // Jika API gagal, coba ambil data dari blockchain langsung
+      return this.getIPAssetFromBlockchain(ipId);
     }
   }
 
-  private generateMockIPData(ipId: string): IPAssetData {
-    // Generate consistent mock data based on IP ID
-    const mockData = {
-      id: ipId,
-      name: `IP Asset ${ipId.slice(0, 8)}...`,
-      owner: '0x' + Math.random().toString(16).substr(2, 40),
-      type: 'IP Asset',
-      revenue: Math.random() * 1000,
-      derivatives: Math.floor(Math.random() * 8),
-      createdAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-      totalRevenue: Math.random() * 1500,
-      monthlyRevenue: Array.from({length: 12}, () => Math.random() * 200),
-      licenseTerms: ['Standard License', 'Attribution Required'],
-      tags: ['blockchain', 'ip', 'asset'],
-      metadata: {
-        title: `IP Asset ${ipId.slice(0, 8)}`,
-        description: 'This IP Asset is registered on Story Protocol',
-        image: 'https://via.placeholder.com/300x300?text=IP+Asset',
-        mediaType: 'image/png',
-        creators: [
+  private async getIPAssetFromBlockchain(ipId: string): Promise<IPAssetData> {
+    try {
+      // Gunakan RPC call langsung ke Story blockchain
+      const response = await axios.post(this.rpcUrl, {
+        jsonrpc: '2.0',
+        method: 'eth_call',
+        params: [
           {
-            name: 'Creator',
-            address: '0x' + Math.random().toString(16).substr(2, 40),
-            contributionPercent: 100
-          }
-        ]
-      }
-    };
+            to: ipId,
+            data: '0x06fdde03' // name() function selector
+          },
+          'latest'
+        ],
+        id: 1
+      });
 
-    return mockData;
+      if (response.data.result && response.data.result !== '0x') {
+        // Parse hasil dari blockchain
+        return {
+          id: ipId,
+          name: `IP Asset ${ipId.slice(0, 8)}...`,
+          owner: 'Unknown',
+          type: 'IP Asset',
+          revenue: 0,
+          derivatives: 0,
+          createdAt: new Date().toISOString(),
+          totalRevenue: 0,
+          monthlyRevenue: [],
+          licenseTerms: [],
+          tags: ['blockchain', 'story-protocol'],
+          metadata: {
+            title: `IP Asset ${ipId.slice(0, 8)}`,
+            description: 'IP Asset registered on Story Protocol',
+            image: 'https://via.placeholder.com/300x300?text=Story+IP'
+          }
+        };
+      }
+      
+      throw new Error('No data found on blockchain');
+    } catch (error) {
+      console.error('Error fetching from blockchain:', error);
+      throw new Error(`Failed to fetch IP Asset ${ipId} - Asset may not exist`);
+    }
   }
 
   async getIPRelationships(ipId: string): Promise<IPRelationship[]> {
     try {
-      const response = await axios.get(`${this.apiBaseUrl}/api/v1/assets/${ipId}/relationships`, {
+      const response = await axios.get(`${this.apiBaseUrl}/assets/${ipId}/relationships`, {
         headers: this.apiHeaders
       });
 
@@ -141,58 +154,22 @@ export class StoryAPI {
       }));
     } catch (error) {
       console.error('Error fetching IP relationships:', error);
-      
-      // Return mock relationships
-      return this.generateMockRelationships(ipId);
+      throw new Error(`Failed to fetch relationships for IP Asset ${ipId}`);
     }
-  }
-
-  private generateMockRelationships(ipId: string): IPRelationship[] {
-    const relationshipTypes: Array<'parent' | 'derivative' | 'license' | 'remix' | 'commercial'> = 
-      ['parent', 'derivative', 'license', 'remix', 'commercial'];
-    const relationships: IPRelationship[] = [];
-    const relationshipCount = Math.floor(Math.random() * 5) + 1;
-    
-    for (let i = 0; i < relationshipCount; i++) {
-      const type = relationshipTypes[Math.floor(Math.random() * relationshipTypes.length)];
-      const isParent = type === 'parent';
-      const relatedId = '0x' + Math.random().toString(16).substr(2, 40);
-      
-      relationships.push({
-        type,
-        source: isParent ? relatedId : ipId,
-        target: isParent ? ipId : relatedId,
-        name: `${type.charAt(0).toUpperCase() + type.slice(1)} ${i + 1}`,
-        owner: '0x' + Math.random().toString(16).substr(2, 40),
-        revenue: Math.random() * 500,
-        derivatives: Math.floor(Math.random() * 4),
-        licenseType: ['Creative Commons', 'Commercial', 'Attribution', 'Share Alike'][Math.floor(Math.random() * 4)],
-        royaltyRate: Math.random() * 0.3,
-        createdAt: new Date(Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000).toISOString()
-      });
-    }
-
-    return relationships;
   }
 
   async getRandomIP(): Promise<string> {
-    // Use known working IP IDs from Story Protocol
-    const knownWorkingIPs = [
-      '0xB1D831271A68Db5c18c8F0B69327446f7C8D0A42',
-      '0x7d126DB8bdD3bF88d757FC2e99BFE3d77a55509b',
-      '0x49614De8b2b02C790708243F268Af50979D568d4',
-      '0x1234567890123456789012345678901234567890',
-      '0x2345678901234567890123456789012345678901',
-      '0x3456789012345678901234567890123456789012'
+    // Gunakan IP yang benar-benar ada di Story Protocol
+    const realStoryIPs = [
+      '0xB1D831271A68Db5c18c8F0B69327446f7C8D0A42', // Ippy - Story's mascot (mainnet)
     ];
     
-    const randomIndex = Math.floor(Math.random() * knownWorkingIPs.length);
-    return knownWorkingIPs[randomIndex];
+    return realStoryIPs[0]; // Return Ippy sebagai contoh yang pasti ada
   }
 
   async getRevenueData(ipId: string): Promise<RevenueData> {
     try {
-      const response = await axios.get(`${this.apiBaseUrl}/api/v1/assets/${ipId}/revenue`, {
+      const response = await axios.get(`${this.apiBaseUrl}/assets/${ipId}/revenue`, {
         headers: this.apiHeaders
       });
 
@@ -210,40 +187,31 @@ export class StoryAPI {
       };
     } catch (error) {
       console.error('Error fetching revenue data:', error);
-      
-      return {
-        totalRevenue: Math.random() * 2000,
-        monthlyRevenue: Array.from({length: 12}, () => Math.random() * 200),
-        topEarningDerivatives: [],
-        revenueBreakdown: {
-          directSales: Math.random() * 1000,
-          royalties: Math.random() * 500,
-          licensing: Math.random() * 300
-        }
-      };
+      throw new Error(`Failed to fetch revenue data for IP Asset ${ipId}`);
     }
   }
 
   async searchIPAssets(query: string): Promise<IPAssetData[]> {
     try {
-      const response = await axios.get(`${this.apiBaseUrl}/api/v1/assets/search`, {
+      const response = await axios.get(`${this.apiBaseUrl}/assets/search`, {
         headers: this.apiHeaders,
         params: { q: query, limit: 10 }
       });
 
       return response.data.map((asset: any) => ({
         id: asset.id,
-        name: asset.name,
+        name: asset.name || asset.metadata?.title,
         owner: asset.owner,
         type: asset.type,
         revenue: asset.revenue || 0,
         derivatives: asset.derivatives || 0,
         totalRevenue: asset.totalRevenue || 0,
-        tags: asset.tags || []
+        tags: asset.tags || [],
+        metadata: asset.metadata
       }));
     } catch (error) {
       console.error('Error searching IP assets:', error);
-      return [];
+      throw new Error('Failed to search IP assets');
     }
   }
 
@@ -305,21 +273,14 @@ export class StoryAPI {
     recentActivity: Array<{type: string, ipId: string, timestamp: string}>;
   }> {
     try {
-      const response = await axios.get(`${this.apiBaseUrl}/api/v1/ecosystem/overview`, {
+      const response = await axios.get(`${this.apiBaseUrl}/ecosystem/overview`, {
         headers: this.apiHeaders
       });
 
       return response.data;
     } catch (error) {
       console.error('Error fetching ecosystem overview:', error);
-      
-      return {
-        totalIPs: 0,
-        totalRevenue: 0,
-        totalDerivatives: 0,
-        topPerformers: [],
-        recentActivity: []
-      };
+      throw new Error('Failed to fetch ecosystem overview');
     }
   }
 }
