@@ -12,9 +12,11 @@ A browser extension for visualizing IP relationships and ownership on Story Prot
 - 🔗 **Story Protocol Integration**: Real-time data from Story Aeneid Testnet
 
 ## Installation
-   1. Open "chrome://extensions/"
-   2. Click "Load Unpacked"
-   3. Select folder "dist"
+   1. Download zip file
+   2. Export zip file
+   3. Open "chrome://extensions/"
+   4. Click "Load Unpacked"
+   5. Select folder "ip-graph-extension/dist"
 
 ### Development Setup
 
