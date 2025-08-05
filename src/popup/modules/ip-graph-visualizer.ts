@@ -46,45 +46,61 @@ export class IPGraphVisualizer {
   }
 
   private initializeSVG(): void {
-    // Clear existing content
-    d3.select(this.container).selectAll('*').remove();
-    
-    this.svg = d3.select(this.container)
-      .append('svg')
-      .attr('width', this.width)
-      .attr('height', this.height)
-      .style('background', '#fafafa')
-      .style('border-radius', '8px')
-      .style('border', '1px solid #e9ecef');
+  // Clear existing content
+  d3.select(this.container).selectAll('*').remove();
+  
+  this.svg = d3.select(this.container)
+    .append('svg')
+    .attr('width', this.width)
+    .attr('height', this.height)
+    .style('background', 'linear-gradient(135deg, #fafbff 0%, #f0f4ff 100%)')
+    .style('border-radius', '12px');
 
-    // Add zoom behavior
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.1, 4])
-      .on('zoom', (event) => {
-        this.svg.select('.main-group').attr('transform', event.transform);
-      });
+  // Add definitions for gradients
+  const defs = this.svg.append('defs');
+  
+  // Root gradient
+  const rootGradient = defs.append('linearGradient')
+    .attr('id', 'rootGradient')
+    .attr('x1', '0%').attr('y1', '0%')
+    .attr('x2', '100%').attr('y2', '100%');
+  rootGradient.append('stop').attr('offset', '0%').attr('stop-color', '#667eea');
+  rootGradient.append('stop').attr('offset', '100%').attr('stop-color', '#764ba2');
+  
+  // Parent gradient
+  const parentGradient = defs.append('linearGradient')
+    .attr('id', 'parentGradient')
+    .attr('x1', '0%').attr('y1', '0%')
+    .attr('x2', '100%').attr('y2', '100%');
+  parentGradient.append('stop').attr('offset', '0%').attr('stop-color', '#10b981');
+  parentGradient.append('stop').attr('offset', '100%').attr('stop-color', '#059669');
+  
+  // Child gradient
+  const childGradient = defs.append('linearGradient')
+    .attr('id', 'childGradient')
+    .attr('x1', '0%').attr('y1', '0%')
+    .attr('x2', '100%').attr('y2', '100%');
+  childGradient.append('stop').attr('offset', '0%').attr('stop-color', '#f59e0b');
+  childGradient.append('stop').attr('offset', '100%').attr('stop-color', '#d97706');
+  
+  // Derivative gradient
+  const derivativeGradient = defs.append('linearGradient')
+    .attr('id', 'derivativeGradient')
+    .attr('x1', '0%').attr('y1', '0%')
+    .attr('x2', '100%').attr('y2', '100%');
+  derivativeGradient.append('stop').attr('offset', '0%').attr('stop-color', '#ef4444');
+  derivativeGradient.append('stop').attr('offset', '100%').attr('stop-color', '#dc2626');
 
-    this.svg.call(zoom);
+  // Add zoom behavior
+  const zoom = d3.zoom<SVGSVGElement, unknown>()
+    .scaleExtent([0.1, 4])
+    .on('zoom', (event) => {
+      this.svg.select('.main-group').attr('transform', event.transform);
+    });
 
-    // Add main group for zooming/panning
-    this.svg.append('g').attr('class', 'main-group');
-
-    // Add definitions for gradients and patterns
-    const defs = this.svg.append('defs');
-    
-    // Add arrow markers for links
-    defs.append('marker')
-      .attr('id', 'arrowhead')
-      .attr('viewBox', '0 -5 10 10')
-      .attr('refX', 25)
-      .attr('refY', 0)
-      .attr('markerWidth', 6)
-      .attr('markerHeight', 6)
-      .attr('orient', 'auto')
-      .append('path')
-      .attr('d', 'M0,-5L10,0L0,5')
-      .attr('fill', '#666');
-  }
+  this.svg.call(zoom);
+  this.svg.append('g').attr('class', 'main-group');
+}
 
   private initializeSimulation(): void {
     this.simulation = d3.forceSimulation<IPNode>()
@@ -377,14 +393,14 @@ export class IPGraphVisualizer {
   }
 
   private getNodeColor(type: string): string {
-    const colors = {
-      root: '#667eea',
-      parent: '#10b981',
-      child: '#f59e0b',
-      derivative: '#ef4444'
-    };
-    return colors[type as keyof typeof colors] || '#6b7280';
-  }
+  const colors = {
+    root: 'url(#rootGradient)',
+    parent: 'url(#parentGradient)', 
+    child: 'url(#childGradient)',
+    derivative: 'url(#derivativeGradient)'
+  };
+  return colors[type as keyof typeof colors] || '#6b7280';
+}
 
   private getNodeRadius(type: string): number {
     const sizes = {

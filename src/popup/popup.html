@@ -19,21 +19,33 @@
 
         <!-- Tab Navigation -->
         <nav class="tabs">
-            <button class="tab-button active" data-tab="search-tab">🔍 Search</button>
-            <button class="tab-button" data-tab="wallet-tab">💼 Wallet</button>
-            <button class="tab-button" data-tab="analytics-tab">📈 Analytics</button>
+            <button class="tab-button active" data-tab="search-tab">
+                <span>🔍</span> Search
+            </button>
+            <button class="tab-button" data-tab="wallet-tab">
+                <span>💼</span> Wallet
+            </button>
+            <button class="tab-button" data-tab="analytics-tab">
+                <span>📈</span> Analytics
+            </button>
         </nav>
 
         <!-- Search Tab -->
         <div id="search-tab" class="tab-content active">
             <div class="search-section">
                 <div class="input-group">
-                    <input type="text" id="search" placeholder="Enter IP Asset ID (0x...)" />
-                    <button id="visualize" class="btn-primary">Visualize</button>
+                    <input 
+                        type="text" 
+                        id="search" 
+                        placeholder="Enter IP Asset ID (0x...)" 
+                        spellcheck="false"
+                        autocomplete="off"
+                    />
+                    <button id="visualize" class="btn-primary">Analyze</button>
                 </div>
                 <div class="quick-actions">
-                    <button id="random-ip" class="btn-secondary">Random IP</button>
-                    <button id="clear-graph" class="btn-secondary">Clear</button>
+                    <button id="random-ip" class="btn-secondary">🎲 Random</button>
+                    <button id="clear-graph" class="btn-secondary">🗑️ Clear</button>
                 </div>
             </div>
 
@@ -42,7 +54,7 @@
                 <div id="graph-canvas"></div>
                 <div id="graph-loading" class="loading hidden">
                     <div class="spinner"></div>
-                    <p>Loading IP relationships...</p>
+                    <p>Analyzing IP relationships...</p>
                 </div>
             </div>
 
@@ -50,7 +62,7 @@
             <div id="ip-details" class="details-panel">
                 <div class="placeholder">
                     <span class="placeholder-icon">🎯</span>
-                    <p>Search for an IP Asset to see its relationship graph</p>
+                    <p>Enter an IP Asset ID above to visualize its relationship network and discover connected assets.</p>
                 </div>
             </div>
         </div>
@@ -60,7 +72,10 @@
             <div class="wallet-section">
                 <div id="wallet-status" class="wallet-status">
                     <div class="status-indicator"></div>
-                    <span id="connection-status">Disconnected</span>
+                    <div class="wallet-info-text">
+                        <div id="connection-status">Connect to Story Protocol</div>
+                        <div class="wallet-subtitle">Access your IP assets and portfolio</div>
+                    </div>
                 </div>
 
                 <div class="wallet-actions">
@@ -70,39 +85,40 @@
 
                 <div class="wallet-info">
                     <div id="wallet-address-item" class="info-item hidden">
-                        <span class="label">Address:</span>
-                        <span id="wallet-address" class="value"></span>
+                        <span class="label">Wallet Address</span>
+                        <span id="wallet-address" class="value">-</span>
                     </div>
                     <div id="wallet-balance-item" class="info-item hidden">
-                        <span class="label">Balance:</span>
-                        <span id="wallet-balance" class="value"></span>
+                        <span class="label">Balance</span>
+                        <span id="wallet-balance" class="value">-</span>
                     </div>
                     <div id="wallet-network-item" class="info-item hidden">
-                        <span class="label">Network:</span>
-                        <span id="wallet-network" class="value"></span>
+                        <span class="label">Network</span>
+                        <span id="wallet-network" class="value">-</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Update analytics tab content in popup.html -->
-<div id="analytics-tab" class="tab-content">
-  <div id="analytics-content">
-    <!-- Analytics dashboard will be rendered here -->
-  </div>
-  
-  <div class="analytics-actions">
-    <button id="export-analytics" class="btn-secondary">📊 Export Data</button>
-    <button id="clear-analytics" class="btn-secondary">🗑️ Clear Data</button>
-    <button id="refresh-analytics" class="btn-primary">🔄 Refresh</button>
-  </div>
-</div>
+        <!-- Analytics Tab -->
+        <div id="analytics-tab" class="tab-content">
+            <div id="analytics-content" class="analytics-section">
+                <!-- Analytics dashboard will be rendered here -->
+            </div>
+            
+            <div class="analytics-actions">
+                <button id="export-analytics" class="btn-secondary">📊 Export</button>
+                <button id="clear-analytics" class="btn-secondary">🗑️ Clear</button>
+                <button id="refresh-analytics" class="btn-primary">🔄 Refresh</button>
+            </div>
+        </div>
 
         <!-- Footer -->
         <footer class="footer">
             <div class="footer-links">
                 <a href="https://story.foundation" target="_blank">Story Protocol</a>
                 <a href="https://aeneid.storyscan.io" target="_blank">Explorer</a>
+                <a href="#" id="about-link">About</a>
             </div>
         </footer>
     </div>
