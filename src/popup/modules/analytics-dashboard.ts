@@ -233,37 +233,42 @@ export class AnalyticsDashboard {
   }
 
   private renderPerformanceMetrics(): string {
-    return `
-      <div class="performance-section">
-        <h3>⚡ Performance Metrics</h3>
-        <div class="metrics-grid">
-          <div class="metric-item">
-            <div class="metric-label">Average Load Time</div>
-            <div class="metric-value">${this.data.performanceMetrics.avgLoadTime.toFixed(2)}s</div>
-            <div class="metric-bar">
-              <div class="metric-fill" style="width: ${Math.min(this.data.performanceMetrics.avgLoadTime * 20, 100)}%"></div>
-            </div>
+  // Use proper type assertion or direct property access with fallbacks
+  const avgLoadTime = this.data.performanceMetrics?.avgLoadTime || 0;
+  const successRate = this.data.performanceMetrics?.successRate || 0;
+  const errorRate = this.data.performanceMetrics?.errorRate || 0;
+
+  return `
+    <div class="performance-section">
+      <h3>⚡ Performance Metrics</h3>
+      <div class="metrics-grid">
+        <div class="metric-item">
+          <div class="metric-label">Average Load Time</div>
+          <div class="metric-value">${avgLoadTime.toFixed(2)}s</div>
+          <div class="metric-bar">
+            <div class="metric-fill" style="width: ${Math.min(avgLoadTime * 20, 100)}%"></div>
           </div>
-          
-          <div class="metric-item">
-            <div class="metric-label">Success Rate</div>
-            <div class="metric-value">${this.data.performanceMetrics.successRate.toFixed(1)}%</div>
-            <div class="metric-bar">
-              <div class="metric-fill success" style="width: ${this.data.performanceMetrics.successRate}%"></div>
-            </div>
+        </div>
+        
+        <div class="metric-item">
+          <div class="metric-label">Success Rate</div>
+          <div class="metric-value">${successRate.toFixed(1)}%</div>
+          <div class="metric-bar">
+            <div class="metric-fill success" style="width: ${Math.max(0, Math.min(successRate, 100))}%"></div>
           </div>
-          
-          <div class="metric-item">
-            <div class="metric-label">Error Rate</div>
-            <div class="metric-value">${this.data.performanceMetrics.errorRate.toFixed(1)}%</div>
-            <div class="metric-bar">
-              <div class="metric-fill error" style="width: ${this.data.performanceMetrics.errorRate}%"></div>
-            </div>
+        </div>
+        
+        <div class="metric-item">
+          <div class="metric-label">Error Rate</div>
+          <div class="metric-value">${errorRate.toFixed(1)}%</div>
+          <div class="metric-bar">
+            <div class="metric-fill error" style="width: ${Math.max(0, Math.min(errorRate, 100))}%"></div>
           </div>
         </div>
       </div>
-    `;
-  }
+    </div>
+  `;
+}
 
   private renderUsageStatistics(): string {
     return `
