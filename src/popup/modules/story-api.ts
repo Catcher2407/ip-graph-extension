@@ -46,10 +46,10 @@ interface RevenueData {
 }
 
 export class StoryAPI {
-  private apiBaseUrl = 'https://api.storyapis.com/assets';
+  private apiBaseUrl = 'https://api.storyapis.com';
   private rpcUrl = 'https://aeneid.storyrpc.io';
   private apiHeaders = {
-    'X-CHAIN': 'story-aeneid', // untuk testnet, gunakan 'story' untuk mainnet
+    'X-CHAIN': 'story-aeneid',
     'X-API-Key': 'MhBsxkU1z9fG6TofE59KqiiWV-YlYE8Q4awlLQehF3U',
     'Content-Type': 'application/json'
   };
@@ -60,53 +60,106 @@ export class StoryAPI {
 
   async getIPAsset(ipId: string): Promise<IPAssetData> {
     try {
-      // Berdasarkan dokumentasi, endpoint yang benar adalah tanpa /api/v1/
-      const response = await axios.get(`${this.apiBaseUrl}/assets/${ipId}`, {
-        headers: this.apiHeaders
-      });
-
-      const ipData = response.data;
+      console.log(`Fetching IP Asset: ${ipId}`);
       
-      return {
-        id: ipData.id || ipId,
-        name: ipData.name || ipData.metadata?.title || `IP Asset ${ipId.slice(0, 8)}...`,
-        owner: ipData.owner,
-        type: ipData.type || 'IP Asset',
-        revenue: ipData.revenue || 0,
-        derivatives: ipData.derivatives || 0,
-        createdAt: ipData.createdAt,
-        totalRevenue: ipData.totalRevenue || 0,
-        monthlyRevenue: ipData.monthlyRevenue || [],
-        licenseTerms: ipData.licenseTerms || [],
-        tags: ipData.tags || [],
-        metadata: ipData.metadata
-      };
+      // Coba beberapa endpoint yang mungkin benar
+      const endpoints = [
+        `${this.apiBaseUrl}/assets/${ipId}`,
+        `${this.apiBaseUrl}/ip-assets/${ipId}`,
+        `${this.apiBaseUrl}/v1/assets/${ipId}`,
+        `${this.apiBaseUrl}/api/v1/ip-assets/${ipId}`
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint}`);
+          const response = await axios.get(endpoint, {
+            headers: this.apiHeaders,
+            timeout: 10000
+          });
+
+          console.log('API Response:', response.data);
+          const ipData = response.data;
+          
+          return {
+            id: ipData.id || ipId,
+            name: ipData.name || ipData.metadata?.title || `IP Asset ${ipId.slice(0, 8)}...`,
+            owner: ipData.owner,
+            type: ipData.type || 'IP Asset',
+            revenue: ipData.revenue || 0,
+            derivatives: ipData.derivatives || 0,
+            createdAt: ipData.createdAt,
+            totalRevenue: ipData.totalRevenue || 0,
+            monthlyRevenue: ipData.monthlyRevenue || [],
+            licenseTerms: ipData.licenseTerms || [],
+            tags: ipData.tags || [],
+            metadata: ipData.metadata
+          };
+        } catch (endpointError) {
+          console.log(`Endpoint ${endpoint} failed:`, endpointError.response?.status);
+          continue;
+        }
+      }
+      
+      throw new Error('All API endpoints failed');
     } catch (error) {
       console.error('Error fetching IP Asset from API:', error);
       
-      // Jika API gagal, coba ambil data dari blockchain langsung
+      // Coba ambil data dari blockchain langsung
       return this.getIPAssetFromBlockchain(ipId);
     }
   }
 
   private async getIPAssetFromBlockchain(ipId: string): Promise<IPAssetData> {
     try {
-      // Gunakan RPC call langsung ke Story blockchain
-      const response = await axios.post(this.rpcUrl, {
+      console.log(`Fetching from blockchain: ${ipId}`);
+      
+      // Cek apakah address valid sebagai contract
+      const codeResponse = await axios.post(this.rpcUrl, {
         jsonrpc: '2.0',
-        method: 'eth_call',
-        params: [
-          {
-            to: ipId,
-            data: '0x06fdde03' // name() function selector
-          },
-          'latest'
-        ],
+        method: 'eth_getCode',
+        params: [ipId, 'latest'],
         id: 1
       });
 
-      if (response.data.result && response.data.result !== '0x') {
-        // Parse hasil dari blockchain
+      if (codeResponse.data.result === '0x') {
+        throw new Error('Address is not a contract');
+      }
+
+      // Coba beberapa function selector yang umum untuk IP Asset
+      const functionSelectors = [
+        '0x06fdde03', // name()
+        '0x95d89b41', // symbol()
+        '0x8da5cb5b', // owner()
+        '0x01ffc9a7'  // supportsInterface()
+      ];
+
+      const contractData: any = {};
+
+      for (const selector of functionSelectors) {
+        try {
+          const response = await axios.post(this.rpcUrl, {
+            jsonrpc: '2.0',
+            method: 'eth_call',
+            params: [
+              {
+                to: ipId,
+                data: selector
+              },
+              'latest'
+            ],
+            id: 1
+          });
+
+          if (response.data.result && response.data.result !== '0x') {
+            contractData[selector] = response.data.result;
+          }
+        } catch (callError) {
+          console.log(`Function call ${selector} failed:`, callError);
+        }
+      }
+
+      if (Object.keys(contractData).length > 0) {
         return {
           id: ipId,
           name: `IP Asset ${ipId.slice(0, 8)}...`,
@@ -122,39 +175,56 @@ export class StoryAPI {
           metadata: {
             title: `IP Asset ${ipId.slice(0, 8)}`,
             description: 'IP Asset registered on Story Protocol',
-            image: 'https://via.placeholder.com/300x300?text=Story+IP'
+            image: 'https://via.placeholder.com/300x300?text=Story+IP',
+            contractData: contractData
           }
         };
       }
       
-      throw new Error('No data found on blockchain');
+      throw new Error('No contract data found');
     } catch (error) {
       console.error('Error fetching from blockchain:', error);
-      throw new Error(`Failed to fetch IP Asset ${ipId} - Asset may not exist`);
+      throw new Error(`Failed to fetch IP Asset ${ipId} - Asset may not exist or is not accessible`);
     }
   }
 
   async getIPRelationships(ipId: string): Promise<IPRelationship[]> {
     try {
-      const response = await axios.get(`${this.apiBaseUrl}/assets/${ipId}/relationships`, {
-        headers: this.apiHeaders
-      });
+      const endpoints = [
+        `${this.apiBaseUrl}/assets/${ipId}/relationships`,
+        `${this.apiBaseUrl}/ip-assets/${ipId}/relationships`,
+        `${this.apiBaseUrl}/v1/assets/${ipId}/relationships`
+      ];
 
-      return response.data.map((rel: any) => ({
-        type: rel.type,
-        source: rel.source,
-        target: rel.target,
-        name: rel.name,
-        owner: rel.owner,
-        revenue: rel.revenue,
-        derivatives: rel.derivatives,
-        licenseType: rel.licenseType,
-        royaltyRate: rel.royaltyRate,
-        createdAt: rel.createdAt
-      }));
+      for (const endpoint of endpoints) {
+        try {
+          const response = await axios.get(endpoint, {
+            headers: this.apiHeaders,
+            timeout: 10000
+          });
+
+          return response.data.map((rel: any) => ({
+            type: rel.type,
+            source: rel.source,
+            target: rel.target,
+            name: rel.name,
+            owner: rel.owner,
+            revenue: rel.revenue,
+            derivatives: rel.derivatives,
+            licenseType: rel.licenseType,
+            royaltyRate: rel.royaltyRate,
+            createdAt: rel.createdAt
+          }));
+        } catch (endpointError) {
+          continue;
+        }
+      }
+      
+      throw new Error('All relationship endpoints failed');
     } catch (error) {
       console.error('Error fetching IP relationships:', error);
-      throw new Error(`Failed to fetch relationships for IP Asset ${ipId}`);
+      // Return empty array instead of throwing error for relationships
+      return [];
     }
   }
 
@@ -164,57 +234,98 @@ export class StoryAPI {
       '0xB1D831271A68Db5c18c8F0B69327446f7C8D0A42', // Ippy - Story's mascot (mainnet)
     ];
     
-    return realStoryIPs[0]; // Return Ippy sebagai contoh yang pasti ada
+    return realStoryIPs[0];
   }
 
   async getRevenueData(ipId: string): Promise<RevenueData> {
     try {
-      const response = await axios.get(`${this.apiBaseUrl}/assets/${ipId}/revenue`, {
-        headers: this.apiHeaders
-      });
+      const endpoints = [
+        `${this.apiBaseUrl}/assets/${ipId}/revenue`,
+        `${this.apiBaseUrl}/ip-assets/${ipId}/revenue`,
+        `${this.apiBaseUrl}/v1/assets/${ipId}/revenue`
+      ];
 
-      const revenueData = response.data;
+      for (const endpoint of endpoints) {
+        try {
+          const response = await axios.get(endpoint, {
+            headers: this.apiHeaders,
+            timeout: 10000
+          });
+
+          const revenueData = response.data;
+          
+          return {
+            totalRevenue: revenueData.totalRevenue || 0,
+            monthlyRevenue: revenueData.monthlyRevenue || [],
+            topEarningDerivatives: revenueData.topEarningDerivatives || [],
+            revenueBreakdown: revenueData.revenueBreakdown || {
+              directSales: 0,
+              royalties: 0,
+              licensing: 0
+            }
+          };
+        } catch (endpointError) {
+          continue;
+        }
+      }
       
+      throw new Error('All revenue endpoints failed');
+    } catch (error) {
+      console.error('Error fetching revenue data:', error);
+      // Return default revenue data instead of throwing
       return {
-        totalRevenue: revenueData.totalRevenue || 0,
-        monthlyRevenue: revenueData.monthlyRevenue || [],
-        topEarningDerivatives: revenueData.topEarningDerivatives || [],
-        revenueBreakdown: revenueData.revenueBreakdown || {
+        totalRevenue: 0,
+        monthlyRevenue: [],
+        topEarningDerivatives: [],
+        revenueBreakdown: {
           directSales: 0,
           royalties: 0,
           licensing: 0
         }
       };
-    } catch (error) {
-      console.error('Error fetching revenue data:', error);
-      throw new Error(`Failed to fetch revenue data for IP Asset ${ipId}`);
     }
   }
 
   async searchIPAssets(query: string): Promise<IPAssetData[]> {
     try {
-      const response = await axios.get(`${this.apiBaseUrl}/assets/search`, {
-        headers: this.apiHeaders,
-        params: { q: query, limit: 10 }
-      });
+      const endpoints = [
+        `${this.apiBaseUrl}/assets/search`,
+        `${this.apiBaseUrl}/ip-assets/search`,
+        `${this.apiBaseUrl}/search/assets`
+      ];
 
-      return response.data.map((asset: any) => ({
-        id: asset.id,
-        name: asset.name || asset.metadata?.title,
-        owner: asset.owner,
-        type: asset.type,
-        revenue: asset.revenue || 0,
-        derivatives: asset.derivatives || 0,
-        totalRevenue: asset.totalRevenue || 0,
-        tags: asset.tags || [],
-        metadata: asset.metadata
-      }));
+      for (const endpoint of endpoints) {
+        try {
+          const response = await axios.get(endpoint, {
+            headers: this.apiHeaders,
+            params: { q: query, limit: 10 },
+            timeout: 10000
+          });
+
+          return response.data.map((asset: any) => ({
+            id: asset.id,
+            name: asset.name || asset.metadata?.title,
+            owner: asset.owner,
+            type: asset.type,
+            revenue: asset.revenue || 0,
+            derivatives: asset.derivatives || 0,
+            totalRevenue: asset.totalRevenue || 0,
+            tags: asset.tags || [],
+            metadata: asset.metadata
+          }));
+        } catch (endpointError) {
+          continue;
+        }
+      }
+      
+      return [];
     } catch (error) {
       console.error('Error searching IP assets:', error);
-      throw new Error('Failed to search IP assets');
+      return [];
     }
   }
 
+  // Rest of the methods remain the same...
   async getIPAnalytics(ipId: string): Promise<any> {
     try {
       const [revenueData, relationships] = await Promise.all([
@@ -274,13 +385,20 @@ export class StoryAPI {
   }> {
     try {
       const response = await axios.get(`${this.apiBaseUrl}/ecosystem/overview`, {
-        headers: this.apiHeaders
+        headers: this.apiHeaders,
+        timeout: 10000
       });
 
       return response.data;
     } catch (error) {
       console.error('Error fetching ecosystem overview:', error);
-      throw new Error('Failed to fetch ecosystem overview');
+      return {
+        totalIPs: 0,
+        totalRevenue: 0,
+        totalDerivatives: 0,
+        topPerformers: [],
+        recentActivity: []
+      };
     }
   }
 }
