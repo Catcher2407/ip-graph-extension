@@ -18,6 +18,10 @@ module.exports = {
         },
         exclude: /node_modules/,
       },
+      {
+        test: /\.(png|jpe?g|gif|svg)$/i,
+        type: 'asset/resource', // 👈 ini yang memproses file gambar
+      }
     ],
   },
   resolve: {
@@ -37,6 +41,7 @@ module.exports = {
     filename: '[name].js',
     path: path.resolve(__dirname, 'dist'),
     clean: true,
+    assetModuleFilename: 'assets/[hash][ext][query]' // 👈 atur output image folder
   },
   mode: 'development',
   devtool: 'source-map'

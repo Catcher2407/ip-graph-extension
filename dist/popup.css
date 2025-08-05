@@ -616,3 +616,13 @@ body.dark-mode {
   --border-light: #2d3748;
 }
 
+body.dark-mode input[type="text"],
+body.dark-mode input[type="search"] {
+  background-color: #1e293b; /* Dark background */
+  color: #f1f5f9;            /* Light text */
+  border: 1px solid #334155; /* Optional darker border */
+}
+
+body.dark-mode input::placeholder {
+  color: #94a3b8; /* Light gray placeholder */
+}

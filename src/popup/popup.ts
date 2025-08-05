@@ -3,6 +3,7 @@ import { connectWallet, disconnectWallet, updateWalletUI, getCurrentWallet } fro
 import { IPGraphVisualizer } from './modules/ip-graph-visualizer';
 import { StoryAPI } from './modules/story-api';
 import { AnalyticsDashboard } from './modules/analytics-dashboard';
+import icon from '../assets/icons/icon32.png';
 
 // Global variables
 let graphVisualizer: IPGraphVisualizer | null = null;
@@ -22,6 +23,11 @@ const prefersDark = localStorage.getItem('darkMode') === 'true';
 if (prefersDark) {
   document.body.classList.add('dark-mode');
 }
+
+const logoImg = document.getElementById('logo-icon') as HTMLImageElement;
+  if (logoImg) {
+    logoImg.src = icon;
+  }
 
   // Initialize components
   initializeTabs();
