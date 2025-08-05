@@ -85,30 +85,18 @@
             </div>
         </div>
 
-        <!-- Analytics Tab -->
-        <div id="analytics-tab" class="tab-content">
-            <div class="analytics-section">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-ips">-</div>
-                        <div class="stat-label">Total IPs Analyzed</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-relationships">-</div>
-                        <div class="stat-label">Relationships Found</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="avg-derivatives">-</div>
-                        <div class="stat-label">Avg Derivatives</div>
-                    </div>
-                </div>
-
-                <div class="chart-container">
-                    <h3>IP Activity Over Time</h3>
-                    <div id="activity-chart"></div>
-                </div>
-            </div>
-        </div>
+        <!-- Update analytics tab content in popup.html -->
+<div id="analytics-tab" class="tab-content">
+  <div id="analytics-content">
+    <!-- Analytics dashboard will be rendered here -->
+  </div>
+  
+  <div class="analytics-actions">
+    <button id="export-analytics" class="btn-secondary">📊 Export Data</button>
+    <button id="clear-analytics" class="btn-secondary">🗑️ Clear Data</button>
+    <button id="refresh-analytics" class="btn-primary">🔄 Refresh</button>
+  </div>
+</div>
 
         <!-- Footer -->
         <footer class="footer">

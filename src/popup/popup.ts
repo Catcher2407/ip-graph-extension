@@ -2,10 +2,12 @@
 import { connectWallet, disconnectWallet, updateWalletUI, getCurrentWallet } from './modules/wallet-integration';
 import { IPGraphVisualizer } from './modules/ip-graph-visualizer';
 import { StoryAPI } from './modules/story-api';
+import { AnalyticsDashboard } from './modules/analytics-dashboard';
 
 // Global variables
 let graphVisualizer: IPGraphVisualizer | null = null;
 let storyAPI: StoryAPI | null = null;
+let analyticsDashboard: AnalyticsDashboard | null = null;
 let analyticsData = {
   totalIPs: 0,
   totalRelationships: 0,
@@ -121,12 +123,31 @@ function initializeWallet(): void {
   });
 }
 
+// Update initializeAnalytics function
 function initializeAnalytics(): void {
-  updateAnalyticsDisplay();
+  const analyticsContainer = document.getElementById('analytics-content');
+  if (analyticsContainer) {
+    analyticsDashboard = new AnalyticsDashboard(analyticsContainer);
+    analyticsDashboard.render();
+  }
+
+  // Listen for search events
+  document.addEventListener('searchIP', (e: any) => {
+    const { ipId } = e.detail;
+    const searchInput = document.getElementById('search') as HTMLInputElement;
+    if (searchInput) {
+      searchInput.value = ipId;
+      analyzeIP(ipId);
+    }
+  });
 }
 
+// Update analyzeIP function to track analytics
 async function analyzeIP(ipId: string): Promise<void> {
   if (!graphVisualizer || !storyAPI) return;
+  
+  const startTime = performance.now();
+  let success = false;
   
   try {
     showLoading(true);
@@ -135,9 +156,17 @@ async function analyzeIP(ipId: string): Promise<void> {
     const ipData = await storyAPI.getIPAsset(ipId);
     const relationships = await storyAPI.getIPRelationships(ipId);
     
-    // Update analytics
+    // Track analytics
+    if (analyticsDashboard) {
+      analyticsDashboard.trackSearch(ipId, ipData.name || 'Unknown IP');
+      analyticsDashboard.trackVisualization(relationships.length);
+      analyticsDashboard.updateRevenue(ipData.revenue || 0);
+    }
+    
+    // Update analytics display
     analyticsData.totalIPs++;
     analyticsData.totalRelationships += relationships.length;
+    analyticsData.avgDerivatives = analyticsData.totalRelationships / analyticsData.totalIPs;
     updateAnalyticsDisplay();
     
     // Visualize the graph
@@ -146,12 +175,19 @@ async function analyzeIP(ipId: string): Promise<void> {
     // Update details panel
     updateDetailsPanel(ipData, relationships);
     
+    success = true;
     showLoading(false);
     
   } catch (error) {
     console.error('Failed to analyze IP:', error);
     showError('Failed to analyze IP. Please check the ID and try again.');
     showLoading(false);
+  } finally {
+    // Track performance
+    const loadTime = (performance.now() - startTime) / 1000;
+    if (analyticsDashboard) {
+      analyticsDashboard.trackPerformance(loadTime, success);
+    }
   }
 }
 
