@@ -13,7 +13,7 @@ A browser extension for visualizing IP relationships and ownership on Story Prot
 
 ## Installation
    1. Download zip file
-   2. Export zip file
+   2. Extract zip file
    3. Open "chrome://extensions/"
    4. Click "Load Unpacked"
    5. Select folder "ip-graph-extension/dist"
