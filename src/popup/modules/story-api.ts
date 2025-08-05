@@ -271,16 +271,51 @@ export class StoryAPI {
   }
   async getRandomIP(): Promise<string> {
   try {
-    // Try to get a random IP from the API
-    const response = await axios.get(`${this.apiBaseUrl}/ip-assets/random`, {
+    // Since Story API doesn't have a /random endpoint, we'll use a different approach
+    // Option 1: Try to get ecosystem overview and pick a random IP from there
+    const response = await fetch(`${this.apiBaseUrl}/ecosystem/overview`, {
       headers: this.apiHeaders
     });
     
-    return response.data.id;
-  } catch (error) {
-    console.error('Error fetching random IP:', error);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.topPerformers && data.topPerformers.length > 0) {
+        const randomIndex = Math.floor(Math.random() * data.topPerformers.length);
+        return data.topPerformers[randomIndex].id;
+      }
+    }
     
-    // Fallback: generate a random valid IP ID format
+    // Option 2: If ecosystem overview doesn't work, try to get a list of IPs
+    const listResponse = await fetch(`${this.apiBaseUrl}/ip-assets?limit=10`, {
+      headers: this.apiHeaders
+    });
+    
+    if (listResponse.ok) {
+      const listData = await listResponse.json();
+      if (listData.data && listData.data.length > 0) {
+        const randomIndex = Math.floor(Math.random() * listData.data.length);
+        return listData.data[randomIndex].id;
+      }
+    }
+    
+    throw new Error('No IPs found from API');
+  } catch (error) {
+    console.error('Error fetching random IP from API:', error);
+    
+    // Fallback: Use known IP IDs from Story testnet/mainnet
+    const knownIPs = [
+      '0xB1D831271A68Db5c18c8F0B69327446f7C8D0A42', // Official Ippy IP (mainnet)
+      '0x7d126DB8bdD3bF88d757FC2e99BFE3d77a55509b', // Music example (testnet)
+      '0x49614De8b2b02C790708243F268Af50979D568d4', // AI Agent example (testnet)
+      // Add more known IP IDs here
+    ];
+    
+    if (knownIPs.length > 0) {
+      const randomIndex = Math.floor(Math.random() * knownIPs.length);
+      return knownIPs[randomIndex];
+    }
+    
+    // Final fallback: generate a valid format IP ID
     const randomHex = Array.from({length: 40}, () => 
       Math.floor(Math.random() * 16).toString(16)
     ).join('');
