@@ -380,7 +380,6 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-md);
   max-width: 100%;
-  overflow-x: auto;
 }
 
 .info-item {
