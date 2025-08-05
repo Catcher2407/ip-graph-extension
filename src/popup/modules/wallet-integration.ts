@@ -643,7 +643,8 @@ async function fetchUserIPAssets(userAddress: string): Promise<any[]> {
 }
 
 function displayUserAssets(assets: any[]): void {
-  const ipDetails = document.getElementById('ip-details');
+  // Gunakan container yang berbeda untuk wallet tab
+  const ipDetails = document.getElementById('user-ip-assets') || document.getElementById('ip-details');
   if (!ipDetails) return;
   
   let html = '<div class="user-assets">';
@@ -685,7 +686,8 @@ function displayUserAssets(assets: any[]): void {
 }
 
 function displayEmptyState(): void {
-  const ipDetails = document.getElementById('ip-details');
+  // Gunakan container yang berbeda untuk wallet tab
+  const ipDetails = document.getElementById('user-ip-assets') || document.getElementById('ip-details');
   if (!ipDetails) return;
   
   ipDetails.innerHTML = `

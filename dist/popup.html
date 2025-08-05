@@ -68,37 +68,45 @@
         </div>
 
         <!-- Wallet Tab -->
-        <div id="wallet-tab" class="tab-content">
-            <div class="wallet-section">
-                <div id="wallet-status" class="wallet-status">
-                    <div class="status-indicator"></div>
-                    <div class="wallet-info-text">
-                        <div id="connection-status">Connect to Story Protocol</div>
-                        <div class="wallet-subtitle">Access your IP assets and portfolio</div>
-                    </div>
-                </div>
-
-                <div class="wallet-actions">
-                    <button id="connect-wallet" class="btn-primary">Connect Wallet</button>
-                    <button id="disconnect-wallet" class="btn-secondary hidden">Disconnect</button>
-                </div>
-
-                <div class="wallet-info">
-                    <div id="wallet-address-item" class="info-item hidden">
-                        <span class="label">Wallet Address</span>
-                        <span id="wallet-address" class="value">-</span>
-                    </div>
-                    <div id="wallet-balance-item" class="info-item hidden">
-                        <span class="label">Balance</span>
-                        <span id="wallet-balance" class="value">-</span>
-                    </div>
-                    <div id="wallet-network-item" class="info-item hidden">
-                        <span class="label">Network</span>
-                        <span id="wallet-network" class="value">-</span>
-                    </div>
-                </div>
+<div id="wallet-tab" class="tab-content">
+    <div class="wallet-section">
+        <div id="wallet-status" class="wallet-status">
+            <div class="status-indicator"></div>
+            <div class="wallet-info-text">
+                <div id="connection-status">Connect to Story Protocol</div>
+                <div class="wallet-subtitle">Access your IP assets and portfolio</div>
             </div>
         </div>
+
+        <div class="wallet-actions">
+            <button id="connect-wallet" class="btn-primary">Connect Wallet</button>
+            <button id="disconnect-wallet" class="btn-secondary hidden">Disconnect</button>
+        </div>
+
+        <div class="wallet-info">
+            <div id="wallet-address-item" class="info-item hidden">
+                <span class="label">Wallet Address</span>
+                <span id="wallet-address" class="value">-</span>
+            </div>
+            <div id="wallet-balance-item" class="info-item hidden">
+                <span class="label">Balance</span>
+                <span id="wallet-balance" class="value">-</span>
+            </div>
+            <div id="wallet-network-item" class="info-item hidden">
+                <span class="label">Network</span>
+                <span id="wallet-network" class="value">-</span>
+            </div>
+        </div>
+
+        <!-- TAMBAHKAN INI: Container untuk IP Assets -->
+        <div id="ip-details" class="details-panel">
+            <div class="placeholder">
+                <span class="placeholder-icon">💼</span>
+                <p>Connect your wallet to view your IP Assets on Story Protocol.</p>
+            </div>
+        </div>
+    </div>
+</div>
 
         <!-- Analytics Tab -->
         <div id="analytics-tab" class="tab-content">
