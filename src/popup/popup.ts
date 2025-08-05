@@ -454,6 +454,11 @@ function showDetectedIPsPanel(detectedIPs: any[]): void {
   closeBtn?.addEventListener('click', () => {
     detectedPanel.remove();
   });
+  // Dark Mode Toggle
+const toggleDarkMode = document.getElementById("dark-mode-toggle");
+toggleDarkMode?.addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+});
 }
 
 // Export functions for use in other modules
