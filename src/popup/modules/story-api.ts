@@ -234,18 +234,22 @@ export class StoryAPI {
 
 async getRandomIP(): Promise<string> {
   try {
-    console.log('Fetching IP addresses from Story Explorer page...');
+    console.log('Fetching IP addresses from Story Explorer web page...');
     
     const response = await fetch('https://aeneid.explorer.story.foundation/ipa', {
       method: 'GET',
       headers: {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.5',
         'Accept-Encoding': 'gzip, deflate, br',
         'DNT': '1',
         'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1'
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Cache-Control': 'max-age=0'
       }
     });
 
@@ -254,180 +258,185 @@ async getRandomIP(): Promise<string> {
     }
 
     const html = await response.text();
-    console.log('Received HTML content, length:', html.length);
+    console.log('HTML received, length:', html.length);
     
-    // Extract IP addresses using multiple patterns
-    const ipAddresses = this.extractIPAddressesFromHTML(html);
+    // Debug: Save HTML to see structure
+    console.log('HTML preview (first 2000 chars):', html.substring(0, 2000));
     
-    if (ipAddresses.length === 0) {
-      throw new Error('No IP addresses found on the page');
+    // Try different extraction methods
+    const addresses = this.extractAddressesFromStoryExplorer(html);
+    
+    if (addresses.length === 0) {
+      // If no addresses found, try to extract from any script tags or data
+      const scriptAddresses = this.extractFromScriptTags(html);
+      if (scriptAddresses.length > 0) {
+        addresses.push(...scriptAddresses);
+      }
     }
     
-    console.log(`Found ${ipAddresses.length} unique IP addresses`);
+    if (addresses.length === 0) {
+      // Last resort: look for any 0x pattern
+      const anyAddresses = this.extractAnyHexPatterns(html);
+      if (anyAddresses.length > 0) {
+        addresses.push(...anyAddresses);
+      }
+    }
     
-    // Pick random IP address
-    const randomIndex = Math.floor(Math.random() * ipAddresses.length);
-    const selectedIP = ipAddresses[randomIndex];
+    if (addresses.length === 0) {
+      console.error('No addresses found. HTML structure might be different.');
+      console.log('Full HTML content:', html);
+      throw new Error('No IP addresses found on the Story Explorer page');
+    }
     
-    console.log('Selected random IP:', selectedIP);
-    return selectedIP;
+    console.log(`Found ${addresses.length} IP addresses:`, addresses);
+    
+    // Return random address
+    const randomIndex = Math.floor(Math.random() * addresses.length);
+    const selectedAddress = addresses[randomIndex];
+    
+    console.log('Selected random IP address:', selectedAddress);
+    return selectedAddress;
     
   } catch (error) {
-    console.error('Error fetching from Story Explorer page:', error);
+    console.error('Error fetching from Story Explorer:', error);
     throw new Error(`Failed to fetch IP addresses from Story Explorer: ${error.message}`);
   }
 }
 
-private extractIPAddressesFromHTML(html: string): string[] {
-  console.log('Extracting IP addresses from HTML...');
+private extractAddressesFromStoryExplorer(html: string): string[] {
+  const addresses = new Set<string>();
   
-  const ipAddresses = new Set<string>();
+  console.log('Extracting addresses using Story Explorer specific patterns...');
   
-  // Pattern 1: Standard Ethereum address format
-  const ethereumAddressRegex = /0x[a-fA-F0-9]{40}/g;
-  const matches = html.match(ethereumAddressRegex);
+  // Pattern 1: Look for table rows with addresses
+  const tableRowRegex = /<tr[^>]*>.*?<td[^>]*>.*?(0x[a-fA-F0-9]{40}).*?<\/td>.*?<\/tr>/gs;
+  let match;
+  while ((match = tableRowRegex.exec(html)) !== null) {
+    const address = match[1];
+    if (this.isValidIPAddress(address)) {
+      addresses.add(address);
+      console.log('Found address in table row:', address);
+    }
+  }
+  
+  // Pattern 2: Look for links to IP assets
+  const linkRegex = /<a[^>]*href="[^"]*\/ipa\/([0x[a-fA-F0-9]{40})"[^>]*>/g;
+  while ((match = linkRegex.exec(html)) !== null) {
+    const address = match[1];
+    if (this.isValidIPAddress(address)) {
+      addresses.add(address);
+      console.log('Found address in link:', address);
+    }
+  }
+  
+  // Pattern 3: Look for div elements with address data
+  const divRegex = /<div[^>]*(?:class="[^"]*address[^"]*"|data-address="([^"]*)").*?>(.*?0x[a-fA-F0-9]{40}.*?)<\/div>/gs;
+  while ((match = divRegex.exec(html)) !== null) {
+    const addressInAttr = match[1];
+    const addressInContent = match[2];
+    
+    if (addressInAttr && this.isValidIPAddress(addressInAttr)) {
+      addresses.add(addressInAttr);
+      console.log('Found address in div attribute:', addressInAttr);
+    }
+    
+    const contentMatch = addressInContent.match(/0x[a-fA-F0-9]{40}/);
+    if (contentMatch && this.isValidIPAddress(contentMatch[0])) {
+      addresses.add(contentMatch[0]);
+      console.log('Found address in div content:', contentMatch[0]);
+    }
+  }
+  
+  // Pattern 4: Look for any element with address-like content
+  const generalRegex = /<[^>]*>(.*?0x[a-fA-F0-9]{40}.*?)<\/[^>]*>/g;
+  while ((match = generalRegex.exec(html)) !== null) {
+    const content = match[1];
+    const addressMatch = content.match(/0x[a-fA-F0-9]{40}/);
+    if (addressMatch && this.isValidIPAddress(addressMatch[0])) {
+      addresses.add(addressMatch[0]);
+      console.log('Found address in general element:', addressMatch[0]);
+    }
+  }
+  
+  return Array.from(addresses);
+}
+
+private extractFromScriptTags(html: string): string[] {
+  const addresses = new Set<string>();
+  
+  console.log('Extracting addresses from script tags...');
+  
+  // Find all script tags
+  const scriptRegex = /<script[^>]*>(.*?)<\/script>/gs;
+  let match;
+  
+  while ((match = scriptRegex.exec(html)) !== null) {
+    const scriptContent = match[1];
+    
+    // Look for addresses in JavaScript code
+    const jsAddressRegex = /['"`](0x[a-fA-F0-9]{40})['"`]/g;
+    let jsMatch;
+    
+    while ((jsMatch = jsAddressRegex.exec(scriptContent)) !== null) {
+      const address = jsMatch[1];
+      if (this.isValidIPAddress(address)) {
+        addresses.add(address);
+        console.log('Found address in script:', address);
+      }
+    }
+    
+    // Look for JSON-like structures
+    const jsonRegex = /"(?:address|id|ipId|contractAddress)":\s*"(0x[a-fA-F0-9]{40})"/g;
+    while ((jsMatch = jsonRegex.exec(scriptContent)) !== null) {
+      const address = jsMatch[1];
+      if (this.isValidIPAddress(address)) {
+        addresses.add(address);
+        console.log('Found address in JSON structure:', address);
+      }
+    }
+  }
+  
+  return Array.from(addresses);
+}
+
+private extractAnyHexPatterns(html: string): string[] {
+  const addresses = new Set<string>();
+  
+  console.log('Extracting any hex patterns that look like addresses...');
+  
+  // Remove HTML tags and get plain text
+  const plainText = html.replace(/<[^>]*>/g, ' ');
+  
+  // Find all 0x patterns
+  const hexRegex = /0x[a-fA-F0-9]{40}/g;
+  const matches = plainText.match(hexRegex);
   
   if (matches) {
     matches.forEach(address => {
-      if (this.isValidEthereumAddress(address)) {
-        ipAddresses.add(address);
+      if (this.isValidIPAddress(address)) {
+        addresses.add(address);
+        console.log('Found address in plain text:', address);
       }
     });
   }
   
-  // Pattern 2: Addresses in href attributes
-  const hrefRegex = /href="[^"]*\/ipa\/([0x[a-fA-F0-9]{40})[^"]*"/g;
-  let hrefMatch;
-  while ((hrefMatch = hrefRegex.exec(html)) !== null) {
-    const address = hrefMatch[1];
-    if (this.isValidEthereumAddress(address)) {
-      ipAddresses.add(address);
-    }
-  }
-  
-  // Pattern 3: Addresses in data attributes
-  const dataRegex = /data-[^=]*="[^"]*([0x[a-fA-F0-9]{40})[^"]*"/g;
-  let dataMatch;
-  while ((dataMatch = dataRegex.exec(html)) !== null) {
-    const address = dataMatch[1];
-    if (this.isValidEthereumAddress(address)) {
-      ipAddresses.add(address);
-    }
-  }
-  
-  // Pattern 4: Addresses in table cells or divs
-  const cellRegex = /<(?:td|div)[^>]*>([^<]*0x[a-fA-F0-9]{40}[^<]*)<\/(?:td|div)>/g;
-  let cellMatch;
-  while ((cellMatch = cellRegex.exec(html)) !== null) {
-    const cellContent = cellMatch[1];
-    const addressMatch = cellContent.match(/0x[a-fA-F0-9]{40}/);
-    if (addressMatch && this.isValidEthereumAddress(addressMatch[0])) {
-      ipAddresses.add(addressMatch[0]);
-    }
-  }
-  
-  // Pattern 5: JSON data embedded in script tags
-  const scriptRegex = /<script[^>]*>(.*?)<\/script>/gs;
-  let scriptMatch;
-  while ((scriptMatch = scriptRegex.exec(html)) !== null) {
-    const scriptContent = scriptMatch[1];
-    const jsonAddresses = scriptContent.match(/0x[a-fA-F0-9]{40}/g);
-    if (jsonAddresses) {
-      jsonAddresses.forEach(address => {
-        if (this.isValidEthereumAddress(address)) {
-          ipAddresses.add(address);
-        }
-      });
-    }
-  }
-  
-  const uniqueAddresses = Array.from(ipAddresses);
-  console.log('Extracted addresses:', uniqueAddresses);
-  
-  return uniqueAddresses;
+  return Array.from(addresses);
 }
 
-private isValidEthereumAddress(address: string): boolean {
-  // Check format
+private isValidIPAddress(address: string): boolean {
+  // Basic format check
   if (!/^0x[a-fA-F0-9]{40}$/i.test(address)) {
     return false;
   }
   
-  // Exclude common non-IP addresses (zero address, common contracts)
+  // Exclude obvious non-IP addresses
   const excludedAddresses = [
     '0x0000000000000000000000000000000000000000', // Zero address
     '0x000000000000000000000000000000000000dead', // Burn address
-    '0x1111111111111111111111111111111111111111', // Common placeholder
     '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // ETH placeholder
   ];
   
-  if (excludedAddresses.includes(address.toLowerCase())) {
-    return false;
-  }
-  
-  return true;
-}
-
-// Method yang sudah ada sebelumnya - pastikan ada
-private extractIPAssetsFromResponse(data: any): any[] {
-  console.log('Extracting IP assets from response:', data);
-  
-  if (Array.isArray(data)) {
-    return data;
-  }
-  
-  // Check common response wrapper patterns
-  const wrapperKeys = ['data', 'items', 'results', 'assets', 'ipa', 'ipAssets', 'list'];
-  
-  for (const key of wrapperKeys) {
-    if (data[key] && Array.isArray(data[key])) {
-      console.log(`Found IP assets in '${key}' field:`, data[key].length);
-      return data[key];
-    }
-  }
-  
-  console.log('No array found in response');
-  return [];
-}
-
-private extractIPIdFromAsset(asset: any): string | null {
-  console.log('Extracting IP ID from asset:', asset);
-  
-  // Coba berbagai field yang mungkin berisi IP ID
-  const possibleIdFields = [
-    'id',
-    'ipId', 
-    'ip_id',
-    'address',
-    'ipAssetId',
-    'ip_asset_id',
-    'contractAddress',
-    'contract_address',
-    'assetAddress',
-    'asset_address',
-    'tokenAddress',
-    'token_address',
-    'hash'
-  ];
-  
-  for (const field of possibleIdFields) {
-    const value = asset[field];
-    if (value && typeof value === 'string') {
-      // Validate Ethereum address format
-      if (/^0x[a-fA-F0-9]{40}$/i.test(value)) {
-        console.log(`Found valid IP ID in field '${field}':`, value);
-        return value;
-      }
-    }
-  }
-  
-  // Jika asset adalah string langsung (untuk HTML scraping)
-  if (typeof asset === 'string' && /^0x[a-fA-F0-9]{40}$/i.test(asset)) {
-    return asset;
-  }
-  
-  console.warn('No valid IP ID found in asset:', asset);
-  return null;
+  return !excludedAddresses.includes(address.toLowerCase());
 }
 
   async getRevenueData(ipId: string): Promise<RevenueData> {
