@@ -307,39 +307,42 @@ export class AnalyticsDashboard {
   }
 
   private renderNetworkAnalytics(): string {
-    return `
-      <div class="network-section">
-        <h3>🌐 Network Analytics</h3>
-        <div class="network-stats">
-          <div class="network-stat-card">
-            <h4>Most Connected IP</h4>
-            <div class="network-detail">
-              <div class="ip-name">${this.data.networkStats.mostConnectedIP.name || 'Digital Art Masterpiece'}</div>
-              <div class="ip-id">${this.data.networkStats.mostConnectedIP.id || '0x1234...7890'}</div>
-              <div class="connection-count">${this.data.networkStats.mostConnectedIP.connections || 8} connections</div>
-            </div>
+  const networkStats = this.data.networkStats;
+  const averageNetworkSize = networkStats.averageNetworkSize || 0;
+  
+  return `
+    <div class="network-section">
+      <h3>🌐 Network Analytics</h3>
+      <div class="network-stats">
+        <div class="network-stat-card">
+          <h4>Most Connected IP</h4>
+          <div class="network-detail">
+            <div class="ip-name">${networkStats.mostConnectedIP.name || 'Digital Art Masterpiece'}</div>
+            <div class="ip-id">${networkStats.mostConnectedIP.id || '0x1234...7890'}</div>
+            <div class="connection-count">${networkStats.mostConnectedIP.connections || 8} connections</div>
           </div>
-          
-          <div class="network-stat-card">
-            <h4>Largest Network</h4>
-            <div class="network-detail">
-              <div class="network-size">${this.data.networkStats.largestNetwork.nodeCount || 12} nodes</div>
-              <div class="network-depth">Depth: ${this.data.networkStats.largestNetwork.depth || 4} levels</div>
-              <div class="network-root">Root: ${this.data.networkStats.largestNetwork.rootId.slice(0, 10) || '0x4567...0123'}...</div>
-            </div>
+        </div>
+        
+        <div class="network-stat-card">
+          <h4>Largest Network</h4>
+          <div class="network-detail">
+            <div class="network-size">${networkStats.largestNetwork.nodeCount || 12} nodes</div>
+            <div class="network-depth">Depth: ${networkStats.largestNetwork.depth || 4} levels</div>
+            <div class="network-root">Root: ${(networkStats.largestNetwork.rootId || '0x4567...0123').slice(0, 10)}...</div>
           </div>
-          
-          <div class="network-stat-card">
-            <h4>Average Network Size</h4>
-            <div class="network-detail">
-              <div class="avg-size">${this.data.networkStats.averageNetworkSize.toFixed(1) || '5.2'} nodes</div>
-              <div class="network-trend">📈 Growing</div>
-            </div>
+        </div>
+        
+        <div class="network-stat-card">
+          <h4>Average Network Size</h4>
+          <div class="network-detail">
+            <div class="avg-size">${averageNetworkSize.toFixed(1)} nodes</div>
+            <div class="network-trend">📈 Growing</div>
           </div>
         </div>
       </div>
-    `;
-  }
+    </div>
+  `;
+}
 
   private renderRevenueAnalytics(): string {
     const revenueData = this.data.revenueAnalytics;
