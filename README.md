@@ -12,6 +12,9 @@ A browser extension for visualizing IP relationships and ownership on Story Prot
 - 🔗 **Story Protocol Integration**: Real-time data from Story Aeneid Testnet
 
 ## Installation
+   1. Open "chrome://extensions/"
+   2. Click "Load Unpacked"
+   3. Select folder "dist"
 
 ### Development Setup
 
