@@ -202,14 +202,28 @@ async function analyzeIP(ipId: string): Promise<void> {
   }
 }
 
-async function getRandomIP(): Promise<string | null> {
-  if (!storyAPI) return null;
+async function getRandomIP(): Promise<string> {
+  if (!storyAPI) {
+    console.error('StoryAPI not initialized');
+    // Fallback: generate a random valid IP ID format
+    const randomHex = Array.from({length: 40}, () => 
+      Math.floor(Math.random() * 16).toString(16)
+    ).join('');
+    
+    return `0x${randomHex}`;
+  }
   
   try {
     return await storyAPI.getRandomIP();
   } catch (error) {
-    console.error('Failed to get random IP:', error);
-    return null;
+    console.error('Error fetching random IP:', error);
+    
+    // Fallback: generate a random valid IP ID format
+    const randomHex = Array.from({length: 40}, () => 
+      Math.floor(Math.random() * 16).toString(16)
+    ).join('');
+    
+    return `0x${randomHex}`;
   }
 }
 

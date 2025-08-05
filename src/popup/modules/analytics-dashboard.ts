@@ -1047,6 +1047,7 @@ export class AnalyticsDashboard {
         .charts-container {
           grid-template-columns: 1fr;
           max-width: 100%;
+          overflow-x: auto;
         }
       }
     `;
