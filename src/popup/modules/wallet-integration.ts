@@ -9,13 +9,155 @@ interface WalletInfo {
 }
 
 let currentWallet: WalletInfo | null = null;
+let walletConnectProvider: any = null;
 
 // Story Aeneid Testnet configuration
 const STORY_AENEID_CHAIN_ID = 1315;
 const STORY_AENEID_RPC = 'https://aeneid.storyrpc.io';
 
-// Main connect function - MetaMask only for now
+// WalletConnect configuration
+const WALLETCONNECT_PROJECT_ID = '872dd7b79a4f1baa768efecf082ed91f'; // Ganti dengan Project ID Anda
+
+// Chain configuration for WalletConnect
+const storyAeneidChain = {
+  chainId: STORY_AENEID_CHAIN_ID,
+  name: 'Story Aeneid Testnet',
+  currency: 'IP',
+  explorerUrl: 'https://aeneid.storyscan.io',
+  rpcUrl: STORY_AENEID_RPC
+};
+
+// Main connect function - supports both MetaMask and WalletConnect
 export async function connectWallet(): Promise<void> {
+  try {
+    updateConnectionStatus('connecting', 'Choose connection method...');
+    
+    // Show wallet selection modal
+    showWalletSelectionModal();
+    
+  } catch (error: any) {
+    console.error('Wallet connection failed:', error);
+    updateConnectionStatus('error', 'Connection failed');
+    showConnectionError(error);
+  }
+}
+
+function showWalletSelectionModal(): void {
+  // Create modal overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'wallet-modal-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  `;
+
+  // Create modal content
+  const modal = document.createElement('div');
+  modal.className = 'wallet-modal';
+  modal.style.cssText = `
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    width: 320px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    position: relative;
+  `;
+
+  modal.innerHTML = `
+    <div class="wallet-modal-header">
+      <h3 style="margin: 0 0 16px 0; color: #333; font-size: 18px;">Connect Wallet</h3>
+      <button class="close-modal" style="position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">×</button>
+    </div>
+    <div class="wallet-options">
+      <button class="wallet-option metamask-option" style="
+        width: 100%;
+        padding: 16px;
+        margin-bottom: 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        background: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: all 0.2s ease;
+      ">
+        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #f6851b, #e2761b); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">M</div>
+        <div style="text-align: left;">
+          <div style="font-weight: 600; color: #333; margin-bottom: 2px;">MetaMask</div>
+          <div style="font-size: 12px; color: #666;">Browser extension</div>
+        </div>
+      </button>
+      
+      <button class="wallet-option walletconnect-option" style="
+        width: 100%;
+        padding: 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        background: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: all 0.2s ease;
+      ">
+        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #3b99fc, #1a73e8); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">W</div>
+        <div style="text-align: left;">
+          <div style="font-weight: 600; color: #333; margin-bottom: 2px;">WalletConnect</div>
+          <div style="font-size: 12px; color: #666;">Mobile & other wallets</div>
+        </div>
+      </button>
+    </div>
+  `;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Add hover effects
+  const walletOptions = modal.querySelectorAll('.wallet-option');
+  walletOptions.forEach(option => {
+    option.addEventListener('mouseenter', () => {
+      (option as HTMLElement).style.borderColor = '#667eea';
+      (option as HTMLElement).style.transform = 'translateY(-2px)';
+    });
+    option.addEventListener('mouseleave', () => {
+      (option as HTMLElement).style.borderColor = '#e5e7eb';
+      (option as HTMLElement).style.transform = 'translateY(0)';
+    });
+  });
+
+  // Event listeners
+  const closeModal = () => {
+    document.body.removeChild(overlay);
+    updateConnectionStatus('connecting', 'Connect to Story Protocol');
+  };
+
+  modal.querySelector('.close-modal')?.addEventListener('click', closeModal);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeModal();
+  });
+
+  modal.querySelector('.metamask-option')?.addEventListener('click', () => {
+    closeModal();
+    connectMetaMask();
+  });
+
+  modal.querySelector('.walletconnect-option')?.addEventListener('click', () => {
+    closeModal();
+    connectWalletConnect();
+  });
+}
+
+async function connectMetaMask(): Promise<void> {
   try {
     updateConnectionStatus('connecting', 'Connecting to MetaMask...');
     
@@ -67,17 +209,97 @@ export async function connectWallet(): Promise<void> {
       network: 'Story Aeneid Testnet'
     };
     
-    updateConnectionStatus('connected', 'Connected to Story Protocol');
+    updateConnectionStatus('connected', 'Connected via MetaMask');
     updateWalletUI();
     await loadUserIPAssets();
     showSuccessMessage();
     
     // Listen for account/chain changes
-    setupWalletEventListeners(ethereum);
+    setupMetaMaskEventListeners(ethereum);
     
   } catch (error: any) {
-    console.error('Wallet connection failed:', error);
-    updateConnectionStatus('error', 'Connection failed');
+    console.error('MetaMask connection failed:', error);
+    updateConnectionStatus('error', 'MetaMask connection failed');
+    showConnectionError(error);
+  }
+}
+
+async function connectWalletConnect(): Promise<void> {
+  try {
+    updateConnectionStatus('connecting', 'Initializing WalletConnect...');
+    
+    // Dynamic import WalletConnect
+    const { WalletConnectModal } = await import('@walletconnect/modal');
+    const { EthereumProvider } = await import('@walletconnect/ethereum-provider');
+    
+    // Initialize WalletConnect provider with correct configuration
+    walletConnectProvider = await EthereumProvider.init({
+      projectId: WALLETCONNECT_PROJECT_ID,
+      chains: [STORY_AENEID_CHAIN_ID],
+      rpcMap: {
+        [STORY_AENEID_CHAIN_ID]: STORY_AENEID_RPC
+      },
+      metadata: {
+        name: 'IP Graph Extension',
+        description: 'Visualize IP Asset relationships on Story Protocol',
+        url: 'https://your-app-url.com',
+        icons: ['https://your-app-url.com/icon.png']
+      },
+      showQrModal: true, // Required property
+      qrModalOptions: {
+        themeMode: 'light',
+        themeVariables: {
+          '--wcm-z-index': '10000'
+        }
+      }
+    });
+
+    // Create modal with string chain ID
+    const modal = new WalletConnectModal({
+      projectId: WALLETCONNECT_PROJECT_ID,
+      chains: [STORY_AENEID_CHAIN_ID.toString()] // Convert to string
+    });
+
+    updateConnectionStatus('connecting', 'Scan QR code with your wallet...');
+
+    // Connect
+    await walletConnectProvider.connect();
+    
+    const accounts = walletConnectProvider.accounts;
+    if (accounts.length === 0) {
+      throw new Error('No accounts connected');
+    }
+
+    const address = accounts[0];
+    
+    // Get balance using WalletConnect provider
+    const balance = await walletConnectProvider.request({
+      method: 'eth_getBalance',
+      params: [address, 'latest']
+    });
+    
+    const balanceInEth = parseInt(balance, 16) / Math.pow(10, 18);
+    
+    currentWallet = {
+      address: address,
+      balance: balanceInEth.toFixed(4),
+      connected: true,
+      chainId: STORY_AENEID_CHAIN_ID,
+      provider: 'WalletConnect',
+      network: 'Story Aeneid Testnet'
+    };
+    
+    updateConnectionStatus('connected', 'Connected via WalletConnect');
+    updateWalletUI();
+    await loadUserIPAssets();
+    showSuccessMessage();
+    
+    // Listen for WalletConnect events
+    setupWalletConnectEventListeners();
+    
+  } catch (error: any) {
+    console.error('WalletConnect connection failed:', error);
+    updateConnectionStatus('error', 'WalletConnect connection failed');
     showConnectionError(error);
   }
 }
@@ -112,7 +334,7 @@ async function switchToStoryAeneid(ethereum: any): Promise<void> {
   }
 }
 
-function setupWalletEventListeners(ethereum: any): void {
+function setupMetaMaskEventListeners(ethereum: any): void {
   // Listen for account changes
   ethereum.on('accountsChanged', (accounts: string[]) => {
     if (accounts.length === 0) {
@@ -136,6 +358,32 @@ function setupWalletEventListeners(ethereum: any): void {
   });
 }
 
+function setupWalletConnectEventListeners(): void {
+  if (!walletConnectProvider) return;
+
+  walletConnectProvider.on('accountsChanged', (accounts: string[]) => {
+    if (accounts.length === 0) {
+      handleDisconnection();
+    } else {
+      const newAddress = accounts[0];
+      if (currentWallet) {
+        currentWallet.address = newAddress;
+        updateWalletUI();
+      }
+    }
+  });
+
+  walletConnectProvider.on('chainChanged', (chainId: number) => {
+    if (chainId !== STORY_AENEID_CHAIN_ID) {
+      showNetworkWarning();
+    }
+  });
+
+  walletConnectProvider.on('disconnect', () => {
+    handleDisconnection();
+  });
+}
+
 function showNetworkWarning(): void {
   const notification = createNotification('⚠️ Please switch to Story Aeneid Testnet', 'error');
   document.body.appendChild(notification);
@@ -147,6 +395,7 @@ function showNetworkWarning(): void {
 
 function handleDisconnection(): void {
   currentWallet = null;
+  walletConnectProvider = null;
   updateConnectionStatus('connecting', 'Disconnected');
   updateWalletUI();
   
@@ -166,6 +415,9 @@ function handleDisconnection(): void {
 // Disconnect wallet
 export async function disconnectWallet(): Promise<void> {
   try {
+    if (walletConnectProvider) {
+      await walletConnectProvider.disconnect();
+    }
     handleDisconnection();
   } catch (error) {
     console.error('Error disconnecting:', error);
@@ -191,7 +443,7 @@ export function updateWalletUI(): void {
     }
     
     if (connectionStatus) {
-      connectionStatus.textContent = 'Connected to Story Protocol';
+      connectionStatus.textContent = `Connected via ${currentWallet.provider}`;
     }
     
     if (walletAddress) {
@@ -244,7 +496,7 @@ function updateConnectionStatus(status: 'connecting' | 'connected' | 'error', me
 }
 
 function showSuccessMessage(): void {
-  const notification = createNotification('✅ Connected to Story Protocol!', 'success');
+  const notification = createNotification(`✅ Connected via ${currentWallet?.provider}!`, 'success');
   document.body.appendChild(notification);
   
   setTimeout(() => {
@@ -317,7 +569,7 @@ export async function loadUserIPAssets(): Promise<void> {
   if (!currentWallet?.connected) return;
   
   try {
-    // Mock user IP assets on Story Protocol
+    // Mock user IP assets
     const userAssets = [
       {
         id: '0x1234567890123456789012345678901234567890',
