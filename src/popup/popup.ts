@@ -18,6 +18,11 @@ let analyticsData = {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('IP Graph Extension popup loaded');
   
+const prefersDark = localStorage.getItem('darkMode') === 'true';
+if (prefersDark) {
+  document.body.classList.add('dark-mode');
+}
+
   // Initialize components
   initializeTabs();
   initializeSearch();
@@ -454,12 +459,15 @@ function showDetectedIPsPanel(detectedIPs: any[]): void {
   closeBtn?.addEventListener('click', () => {
     detectedPanel.remove();
   });
-  // Dark Mode Toggle
+}
+
+  // Dark Mode Toggle Handler
 const toggleDarkMode = document.getElementById("dark-mode-toggle");
 toggleDarkMode?.addEventListener("click", () => {
-  document.body.classList.toggle("dark-mode");
+  const isDark = document.body.classList.toggle("dark-mode");
+  localStorage.setItem("darkMode", isDark.toString());
 });
-}
+
 
 // Export functions for use in other modules
 (window as any).analyzeIP = analyzeIP;

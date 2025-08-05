@@ -239,8 +239,7 @@ export class IPGraphVisualizer {
       .data(this.links)
       .enter().append('line')
       .attr('stroke', d => this.getLinkColor(d.type))
-      .attr('stroke-width', d => Math.max(1, (d.revenue || 0) / 20))
-      .attr('stroke-opacity', 0.7)
+      .attr('stroke-width', d => this.calculateLinkWidth(d.revenue || 0))      .attr('stroke-opacity', 0.7)
       .attr('marker-end', 'url(#arrowhead)');
 
     // Create nodes
@@ -420,6 +419,13 @@ export class IPGraphVisualizer {
     };
     return colors[type as keyof typeof colors] || '#6b7280';
   }
+
+  private calculateLinkWidth(revenue: number = 0): number {
+  const minWidth = 1.5;
+  const maxWidth = 8;
+  const logRevenue = Math.log10(revenue + 1); // hindari log(0)
+  return Math.min(maxWidth, minWidth + logRevenue * 2);
+}
 
   private dragStarted(event: d3.D3DragEvent<SVGGElement, IPNode, IPNode>, d: IPNode): void {
     if (!event.active) this.simulation.alphaTarget(0.3).restart();
