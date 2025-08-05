@@ -46,7 +46,7 @@ interface RevenueData {
 }
 
 export class StoryAPI {
-  private apiBaseUrl = 'https://api.storyapis.com';
+  private apiBaseUrl = 'https://api.storyapis.com/assets';
   private rpcUrl = 'https://aeneid.storyrpc.io';
   private apiHeaders = {
     'X-CHAIN': 'story-aeneid', // untuk testnet, gunakan 'story' untuk mainnet
