@@ -229,13 +229,112 @@ export class StoryAPI {
   }
 
   async getRandomIP(): Promise<string> {
-    // Gunakan IP yang benar-benar ada di Story Protocol
-    const realStoryIPs = [
-      '0xB1D831271A68Db5c18c8F0B69327446f7C8D0A42', // Ippy - Story's mascot (mainnet)
-    ];
+  try {
+    console.log('Fetching random IP from Story Explorer...');
     
-    return realStoryIPs[0];
+    // Fetch data dari Story Explorer
+    const response = await fetch('https://aeneid.explorer.story.foundation/ipa', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'IP-Graph-Extension/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('Story Explorer response:', data);
+    
+    // Extract IP assets dari response
+    let ipAssets = [];
+    
+    if (Array.isArray(data)) {
+      ipAssets = data;
+    } else if (data.data && Array.isArray(data.data)) {
+      ipAssets = data.data;
+    } else if (data.items && Array.isArray(data.items)) {
+      ipAssets = data.items;
+    } else if (data.results && Array.isArray(data.results)) {
+      ipAssets = data.results;
+    } else {
+      console.log('Unexpected response format:', data);
+      throw new Error('No IP assets array found in response');
+    }
+    
+    if (ipAssets.length === 0) {
+      throw new Error('No IP assets found in explorer');
+    }
+    
+    // Pilih IP asset secara random
+    const randomIndex = Math.floor(Math.random() * ipAssets.length);
+    const selectedAsset = ipAssets[randomIndex];
+    
+    console.log('Selected asset:', selectedAsset);
+    
+    // Extract IP ID dari asset
+    const ipId = this.extractIPIdFromAsset(selectedAsset);
+    
+    if (!ipId) {
+      throw new Error('Could not extract valid IP ID from selected asset');
+    }
+    
+    console.log('Selected random IP from Story Explorer:', ipId);
+    return ipId;
+    
+  } catch (error) {
+    console.error('Error fetching from Story Explorer:', error);
+    throw new Error(`Failed to fetch random IP from Story Explorer: ${error.message}`);
   }
+}
+
+private extractIPIdFromAsset(asset: any): string | null {
+  console.log('Extracting IP ID from asset:', asset);
+  
+  // Coba berbagai field yang mungkin berisi IP ID
+  const possibleIdFields = [
+    'id',
+    'ipId', 
+    'ip_id',
+    'address',
+    'ipAssetId',
+    'ip_asset_id',
+    'contractAddress',
+    'contract_address',
+    'assetAddress',
+    'asset_address',
+    'tokenAddress',
+    'token_address'
+  ];
+  
+  for (const field of possibleIdFields) {
+    const value = asset[field];
+    if (value && typeof value === 'string') {
+      // Validate Ethereum address format
+      if (/^0x[a-fA-F0-9]{40}$/i.test(value)) {
+        console.log(`Found valid IP ID in field '${field}':`, value);
+        return value;
+      }
+    }
+  }
+  
+  // Jika tidak ada field langsung, coba nested objects
+  if (asset.contract && typeof asset.contract === 'object') {
+    const contractId = this.extractIPIdFromAsset(asset.contract);
+    if (contractId) return contractId;
+  }
+  
+  if (asset.token && typeof asset.token === 'object') {
+    const tokenId = this.extractIPIdFromAsset(asset.token);
+    if (tokenId) return tokenId;
+  }
+  
+  console.warn('No valid IP ID found in asset:', asset);
+  return null;
+}
 
   async getRevenueData(ipId: string): Promise<RevenueData> {
     try {

@@ -99,12 +99,82 @@ function initializeSearch(): void {
   
   // Random IP button
   randomBtn?.addEventListener('click', async () => {
-    const randomIP = await getRandomIP();
+  if (!storyAPI) return;
+  
+  try {
+    // Show loading state
+    randomBtn.disabled = true;
+    randomBtn.innerHTML = '🔄 Loading...';
+    
+    // Clear previous results
+    if (searchInput) {
+      searchInput.value = '';
+    }
+    
+    showLoading(true);
+    
+    const randomIP = await storyAPI.getRandomIP();
+    
     if (randomIP && searchInput) {
       searchInput.value = randomIP;
+      
+      // Show success message
+      const notification = createNotification(`✅ Found IP: ${randomIP.slice(0, 10)}...`, 'success');
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 3000);
+      
+      // Analyze the IP
       await analyzeIP(randomIP);
     }
-  });
+    
+  } catch (error) {
+    console.error('Failed to get random IP:', error);
+    
+    // Show error message
+    const errorMsg = error.message || 'Failed to fetch random IP from Story Explorer';
+    showError(errorMsg);
+    
+    const notification = createNotification(`❌ ${errorMsg}`, 'error');
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 5000);
+    
+  } finally {
+    // Reset button state
+    randomBtn.disabled = false;
+    randomBtn.innerHTML = '🎲 Random';
+    showLoading(false);
+  }
+});
+
+// Helper function untuk notifications
+function createNotification(message: string, type: 'success' | 'error' | 'info'): HTMLElement {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    z-index: 10001;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    max-width: 300px;
+    word-wrap: break-word;
+  `;
+  
+  const colors = {
+    success: 'linear-gradient(135deg, #10b981, #059669)',
+    error: 'linear-gradient(135deg, #ef4444, #dc2626)',
+    info: 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
+  };
+  
+  notification.style.background = colors[type];
+  notification.textContent = message;
+  
+  return notification;
+}
   
   // Clear graph button
   clearBtn?.addEventListener('click', () => {
