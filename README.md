@@ -15,8 +15,9 @@ A browser extension for visualizing IP relationships and ownership on Story Prot
    1. Download zip file
    2. Extract zip file
    3. Open "chrome://extensions/"
-   4. Click "Load Unpacked"
-   5. Select folder "ip-graph-extension/dist"
+   4. Turn on "Developer mode"
+   5. Click "Load Unpacked"
+   6. Select folder "ip-graph-extension/dist"
 
 ### Development Setup
 
