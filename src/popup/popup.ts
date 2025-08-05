@@ -102,15 +102,8 @@ function initializeSearch(): void {
   if (!storyAPI) return;
   
   try {
-    // Show loading state
     randomBtn.disabled = true;
-    randomBtn.innerHTML = '🔄 Loading...';
-    
-    // Clear previous results
-    if (searchInput) {
-      searchInput.value = '';
-    }
-    
+    randomBtn.innerHTML = '🔄 Scraping...';
     showLoading(true);
     
     const randomIP = await storyAPI.getRandomIP();
@@ -118,28 +111,25 @@ function initializeSearch(): void {
     if (randomIP && searchInput) {
       searchInput.value = randomIP;
       
-      // Show success message
-      const notification = createNotification(`✅ Found IP: ${randomIP.slice(0, 10)}...`, 'success');
+      // Show success notification
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed; top: 20px; right: 20px; padding: 12px 20px;
+        background: linear-gradient(135deg, #10b981, #059669); color: white;
+        border-radius: 8px; font-size: 13px; z-index: 10001;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      `;
+      notification.textContent = `✅ Found IP: ${randomIP.slice(0, 10)}...${randomIP.slice(-6)}`;
       document.body.appendChild(notification);
       setTimeout(() => notification.remove(), 3000);
       
-      // Analyze the IP
       await analyzeIP(randomIP);
     }
     
   } catch (error) {
     console.error('Failed to get random IP:', error);
-    
-    // Show error message
-    const errorMsg = error.message || 'Failed to fetch random IP from Story Explorer';
-    showError(errorMsg);
-    
-    const notification = createNotification(`❌ ${errorMsg}`, 'error');
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 5000);
-    
+    showError('Could not extract IP addresses from Story Explorer. The page structure may have changed.');
   } finally {
-    // Reset button state
     randomBtn.disabled = false;
     randomBtn.innerHTML = '🎲 Random';
     showLoading(false);
