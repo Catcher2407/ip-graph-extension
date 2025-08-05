@@ -358,8 +358,6 @@ body {
 .placeholder p {
   font-size: 14px;
   line-height: 1.6;
-  max-width: 100%;
-  overflow-x: auto;
 }
 
 /* IP Info Display */
@@ -381,6 +379,8 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-md);
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .info-item {
@@ -391,6 +391,8 @@ body {
   background: var(--bg-primary);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .info-item .label {
