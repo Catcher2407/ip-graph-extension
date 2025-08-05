@@ -309,19 +309,151 @@ function showError(message: string): void {
   }
 }
 
+// Add to popup.ts - update checkForStoredIP function
 async function checkForStoredIP(): Promise<void> {
   try {
     const result = await chrome.runtime.sendMessage({ action: 'getStoredIP' });
+    console.log('Stored IP data:', result);
+    
     if (result.selectedIP) {
       const searchInput = document.getElementById('search') as HTMLInputElement;
       if (searchInput) {
         searchInput.value = result.selectedIP;
+        
+        // Show context information if available
+        if (result.fromContextMenu) {
+          showContextInfo(result);
+        }
+        
+        // Handle page detection results
+        if (result.fromPageDetection && result.detectedIPs) {
+          showDetectedIPsPanel(result.detectedIPs);
+        }
+        
+        // Auto-analyze the IP
         await analyzeIP(result.selectedIP);
       }
     }
+    
+    // Handle multiple detected IPs
+    if (result.detectedIPs && result.detectedIPs.length > 0) {
+      showDetectedIPsPanel(result.detectedIPs);
+    }
+    
   } catch (error) {
     console.error('Failed to check stored IP:', error);
   }
+}
+
+// Show context information
+function showContextInfo(data: any): void {
+  const contextPanel = document.createElement('div');
+  contextPanel.className = 'context-info-panel';
+  contextPanel.innerHTML = `
+    <div class="context-header">
+      <span class="context-icon">🎯</span>
+      <span class="context-title">IP Detected from Context Menu</span>
+      <button class="context-close">✕</button>
+    </div>
+    <div class="context-details">
+      ${data.sourceTitle ? `<div class="context-item"><strong>Source:</strong> ${data.sourceTitle}</div>` : ''}
+      ${data.sourceUrl ? `<div class="context-item"><strong>URL:</strong> ${data.sourceUrl}</div>` : ''}
+      ${data.ipType ? `<div class="context-item"><strong>Type:</strong> ${data.ipType}</div>` : ''}
+      ${data.selectionContext ? `<div class="context-item"><strong>Context:</strong> "${data.selectionContext}"</div>` : ''}
+      <div class="context-item"><strong>Detected:</strong> ${new Date(data.timestamp).toLocaleString()}</div>
+    </div>
+  `;
+
+  // Add styles
+  contextPanel.style.cssText = `
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    font-size: 12px;
+  `;
+
+  // Insert before search section
+  const searchSection = document.querySelector('.search-section');
+  if (searchSection) {
+    searchSection.parentNode?.insertBefore(contextPanel, searchSection);
+  }
+
+  // Add close functionality
+  const closeBtn = contextPanel.querySelector('.context-close');
+  closeBtn?.addEventListener('click', () => {
+    contextPanel.remove();
+  });
+
+  // Auto-remove after 10 seconds
+  setTimeout(() => {
+    if (contextPanel.parentNode) {
+      contextPanel.remove();
+    }
+  }, 10000);
+}
+
+// Show detected IPs panel
+function showDetectedIPsPanel(detectedIPs: any[]): void {
+  const detectedPanel = document.createElement('div');
+  detectedPanel.className = 'detected-ips-panel';
+  detectedPanel.innerHTML = `
+    <div class="detected-header">
+      <span class="detected-icon">🔍</span>
+      <span class="detected-title">Detected IPs (${detectedIPs.length})</span>
+      <button class="detected-close">✕</button>
+    </div>
+    <div class="detected-list">
+      ${detectedIPs.slice(0, 10).map((ip, index) => `
+        <div class="detected-item" data-ip="${ip.ip}">
+          <div class="detected-ip">${ip.ip.slice(0, 12)}...${ip.ip.slice(-8)}</div>
+          <div class="detected-type">${ip.type}</div>
+          <div class="detected-context">${ip.context?.slice(0, 40)}...</div>
+          <button class="analyze-ip-btn" data-ip="${ip.ip}">🔍</button>
+        </div>
+      `).join('')}
+      ${detectedIPs.length > 10 ? `<div class="detected-more">+${detectedIPs.length - 10} more IPs detected</div>` : ''}
+    </div>
+  `;
+
+  // Add styles
+  detectedPanel.style.cssText = `
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin: 10px 0;
+    max-height: 300px;
+    overflow-y: auto;
+  `;
+
+  // Insert after search section
+  const searchSection = document.querySelector('.search-section');
+  if (searchSection) {
+    searchSection.parentNode?.insertBefore(detectedPanel, searchSection.nextSibling);
+  }
+
+  // Add event listeners
+  const analyzeButtons = detectedPanel.querySelectorAll('.analyze-ip-btn');
+  analyzeButtons.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const ip = btn.getAttribute('data-ip');
+      if (ip) {
+        const searchInput = document.getElementById('search') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.value = ip;
+          analyzeIP(ip);
+        }
+      }
+    });
+  });
+
+  // Add close functionality
+  const closeBtn = detectedPanel.querySelector('.detected-close');
+  closeBtn?.addEventListener('click', () => {
+    detectedPanel.remove();
+  });
 }
 
 // Export functions for use in other modules
