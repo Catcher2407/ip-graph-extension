@@ -1,3 +1,4 @@
+// src/popup/modules/story-api.ts
 interface IPAssetData {
   id: string;
   name?: string;
@@ -19,226 +20,210 @@ interface IPRelationship {
 }
 
 export class StoryAPI {
-  private baseUrl: string;
-  private apiKey: string;
-  private chainId: string;
+  private mockDatabase: Map<string, IPAssetData> = new Map();
 
   constructor() {
-    this.baseUrl = 'https://api.storyapis.com';
-    this.apiKey = 'MhBsxkU1z9fG6TofE59KqiiWV-YlYE8Q4awlLQehF3U';
-    this.chainId = 'story-aeneid'; // testnet
+    this.initializeMockData();
   }
 
-  private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
-    const url = `${this.baseUrl}${endpoint}`;
-    
-    const headers = {
-      'X-CHAIN': this.chainId,
-      'X-API-Key': this.apiKey,
-      'Content-Type': 'application/json',
-      ...options.headers
-    };
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers
-      });
-
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+  private initializeMockData(): void {
+    // Create a network of connected IP assets
+    const mockIPs = [
+      {
+        id: '0x1234567890123456789012345678901234567890',
+        name: 'Original Digital Art',
+        owner: '0xabcd1234567890123456789012345678901234abcd',
+        type: 'Original Work',
+        revenue: 150.5,
+        derivatives: 3
+      },
+      {
+        id: '0x2345678901234567890123456789012345678901',
+        name: 'Remix Collection #1',
+        owner: '0xbcde2345678901234567890123456789012345bcde',
+        type: 'Derivative Work',
+        revenue: 45.2,
+        derivatives: 1
+      },
+      {
+        id: '0x3456789012345678901234567890123456789012',
+        name: 'Commercial License',
+        owner: '0xcdef3456789012345678901234567890123456cdef',
+        type: 'License',
+        revenue: 89.7,
+        derivatives: 0
+      },
+      {
+        id: '0x4567890123456789012345678901234567890123',
+        name: 'NFT Collection Base',
+        owner: '0xdefa4567890123456789012345678901234567defa',
+        type: 'Original Work',
+        revenue: 234.8,
+        derivatives: 5
+      },
+      {
+        id: '0x5678901234567890123456789012345678901234',
+        name: 'Music Remix',
+        owner: '0xefab5678901234567890123456789012345678efab',
+        type: 'Derivative Work',
+        revenue: 67.3,
+        derivatives: 2
       }
+    ];
 
-      return await response.json();
-    } catch (error) {
-      console.error('Story API request failed:', error);
-      throw error;
-    }
+    mockIPs.forEach(ip => {
+      this.mockDatabase.set(ip.id, ip);
+    });
   }
 
   async getIPAsset(ipId: string): Promise<IPAssetData> {
-    try {
-      // For now, return mock data since the API structure isn't fully documented
-      // In production, this would make a real API call
-      const mockData: IPAssetData = {
-        id: ipId,
-        name: `IP Asset ${ipId.slice(0, 8)}...`,
-        owner: '0x' + Math.random().toString(16).substr(2, 40),
-        type: 'IP Asset',
-        revenue: Math.random() * 100,
-        derivatives: Math.floor(Math.random() * 5),
-        metadata: {
-          title: 'Sample IP Asset',
-          description: 'This is a sample IP Asset for demonstration',
-          createdAt: new Date().toISOString()
-        }
-      };
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      return mockData;
-    } catch (error) {
-      console.error('Failed to fetch IP Asset:', error);
-      throw new Error('Failed to fetch IP Asset data');
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Check if we have this IP in our mock database
+    const mockIP = this.mockDatabase.get(ipId);
+    if (mockIP) {
+      return mockIP;
     }
+
+    // Generate dynamic mock data for any IP ID
+    const mockData: IPAssetData = {
+      id: ipId,
+      name: `IP Asset ${ipId.slice(0, 8)}...`,
+      owner: '0x' + Math.random().toString(16).substr(2, 40),
+      type: ['Original Work', 'Derivative Work', 'License'][Math.floor(Math.random() * 3)],
+      revenue: Math.random() * 200,
+      derivatives: Math.floor(Math.random() * 6),
+      metadata: {
+        title: `Sample IP Asset ${ipId.slice(0, 8)}`,
+        description: 'This is a sample IP Asset for demonstration',
+        createdAt: new Date().toISOString(),
+        tags: ['digital-art', 'nft', 'creative']
+      }
+    };
+
+    return mockData;
   }
 
   async getIPRelationships(ipId: string): Promise<IPRelationship[]> {
-    try {
-      // Mock relationships data
-      const mockRelationships: IPRelationship[] = [];
-      
-      // Add random parent
-      if (Math.random() > 0.3) {
-        mockRelationships.push({
-          type: 'parent',
-          source: '0x' + Math.random().toString(16).substr(2, 40),
-          target: ipId,
-          name: 'Parent IP Asset',
-          owner: '0x' + Math.random().toString(16).substr(2, 40),
-          revenue: Math.random() * 200,
-          derivatives: Math.floor(Math.random() * 10)
-        });
-      }
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    const relationships: IPRelationship[] = [];
 
-      // Add random derivatives
-      const derivativeCount = Math.floor(Math.random() * 4);
-      for (let i = 0; i < derivativeCount; i++) {
-        mockRelationships.push({
+    // Define relationship patterns for known IPs
+    const relationshipMap: Record<string, IPRelationship[]> = {
+      '0x1234567890123456789012345678901234567890': [
+        {
           type: 'derivative',
-          source: ipId,
-          target: '0x' + Math.random().toString(16).substr(2, 40),
-          name: `Derivative ${i + 1}`,
-          owner: '0x' + Math.random().toString(16).substr(2, 40),
-          revenue: Math.random() * 50,
-          derivatives: Math.floor(Math.random() * 3)
-        });
-      }
+          source: '0x1234567890123456789012345678901234567890',
+          target: '0x2345678901234567890123456789012345678901',
+          name: 'Remix Collection #1',
+          owner: '0xbcde2345678901234567890123456789012345bcde',
+          revenue: 45.2
+        },
+        {
+          type: 'derivative',
+          source: '0x1234567890123456789012345678901234567890',
+          target: '0x3456789012345678901234567890123456789012',
+          name: 'Commercial License',
+          owner: '0xcdef3456789012345678901234567890123456cdef',
+          revenue: 89.7
+        },
+        {
+          type: 'derivative',
+          source: '0x1234567890123456789012345678901234567890',
+          target: '0x5678901234567890123456789012345678901234',
+          name: 'Music Remix',
+          owner: '0xefab5678901234567890123456789012345678efab',
+          revenue: 67.3
+        }
+      ],
+      '0x4567890123456789012345678901234567890123': [
+        {
+          type: 'derivative',
+          source: '0x4567890123456789012345678901234567890123',
+          target: '0x2345678901234567890123456789012345678901',
+          name: 'Remix Collection #1',
+          owner: '0xbcde2345678901234567890123456789012345bcde',
+          revenue: 45.2
+        },
+        {
+          type: 'derivative',
+          source: '0x4567890123456789012345678901234567890123',
+          target: '0x5678901234567890123456789012345678901234',
+          name: 'Music Remix',
+          owner: '0xefab5678901234567890123456789012345678efab',
+          revenue: 67.3
+        }
+      ]
+    };
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      return mockRelationships;
-    } catch (error) {
-      console.error('Failed to fetch IP relationships:', error);
-      throw new Error('Failed to fetch IP relationships');
+    if (relationshipMap[ipId]) {
+      return relationshipMap[ipId];
     }
+
+    // Generate random relationships for other IPs
+    const relationshipCount = Math.floor(Math.random() * 4) + 1;
+    
+    for (let i = 0; i < relationshipCount; i++) {
+      const isParent = Math.random() > 0.7;
+      const relatedId = '0x' + Math.random().toString(16).substr(2, 40);
+      
+      relationships.push({
+        type: isParent ? 'parent' : 'derivative',
+        source: isParent ? relatedId : ipId,
+        target: isParent ? ipId : relatedId,
+        name: `${isParent ? 'Parent' : 'Derivative'} IP ${i + 1}`,
+        owner: '0x' + Math.random().toString(16).substr(2, 40),
+        revenue: Math.random() * 100,
+        derivatives: Math.floor(Math.random() * 3)
+      });
+    }
+
+    return relationships;
   }
 
   async getRandomIP(): Promise<string> {
-    try {
-      // Return a random IP ID for demo purposes
-      const randomIPs = [
-        '0x1234567890123456789012345678901234567890',
-        '0x2345678901234567890123456789012345678901',
-        '0x3456789012345678901234567890123456789012',
-        '0x4567890123456789012345678901234567890123',
-        '0x5678901234567890123456789012345678901234'
-      ];
-      
-      return randomIPs[Math.floor(Math.random() * randomIPs.length)];
-    } catch (error) {
-      console.error('Failed to get random IP:', error);
-      throw new Error('Failed to get random IP');
-    }
+    const knownIPs = Array.from(this.mockDatabase.keys());
+    return knownIPs[Math.floor(Math.random() * knownIPs.length)];
   }
 
   async searchIPAssets(query: string): Promise<IPAssetData[]> {
-    try {
-      // Mock search results
-      const mockResults: IPAssetData[] = [];
-      
-      for (let i = 0; i < 3; i++) {
-        mockResults.push({
-          id: '0x' + Math.random().toString(16).substr(2, 40),
-          name: `Search Result ${i + 1}`,
-          owner: '0x' + Math.random().toString(16).substr(2, 40),
-          type: 'IP Asset',
-          revenue: Math.random() * 100,
-          derivatives: Math.floor(Math.random() * 5)
-        });
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    const results: IPAssetData[] = [];
+    
+    // Search in mock database
+    for (const [id, asset] of this.mockDatabase) {
+      if (id.toLowerCase().includes(query.toLowerCase()) || 
+          asset.name?.toLowerCase().includes(query.toLowerCase())) {
+        results.push(asset);
       }
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 400));
-      
-      return mockResults;
-    } catch (error) {
-      console.error('Failed to search IP assets:', error);
-      throw new Error('Failed to search IP assets');
     }
+    
+    // Add some random results if not enough found
+    while (results.length < 3) {
+      results.push({
+        id: '0x' + Math.random().toString(16).substr(2, 40),
+        name: `Search Result ${results.length + 1}`,
+        owner: '0x' + Math.random().toString(16).substr(2, 40),
+        type: 'IP Asset',
+        revenue: Math.random() * 100,
+        derivatives: Math.floor(Math.random() * 5)
+      });
+    }
+    
+    return results.slice(0, 5); // Return max 5 results
   }
 
-  async getIPMetadata(ipId: string): Promise<any> {
-    try {
-      // Mock metadata
-      const mockMetadata = {
-        title: `IP Asset ${ipId.slice(0, 8)}...`,
-        description: 'This is a sample IP Asset metadata',
-        image: 'https://picsum.photos/200/200',
-        creators: [
-          {
-            name: 'Creator Name',
-            address: '0x' + Math.random().toString(16).substr(2, 40),
-            contributionPercent: 100
-          }
-        ],
-        createdAt: new Date().toISOString(),
-        mediaType: 'image/jpeg'
-      };
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      return mockMetadata;
-    } catch (error) {
-      console.error('Failed to fetch IP metadata:', error);
-      throw new Error('Failed to fetch IP metadata');
-    }
-  }
-
-  async getIPAnalytics(ipId: string): Promise<any> {
-    try {
-      // Mock analytics data
-      const mockAnalytics = {
-        totalRevenue: Math.random() * 1000,
-        totalDerivatives: Math.floor(Math.random() * 20),
-        monthlyRevenue: Array.from({ length: 12 }, () => Math.random() * 100),
-        topDerivatives: [
-          {
-            id: '0x' + Math.random().toString(16).substr(2, 40),
-            name: 'Top Derivative 1',
-            revenue: Math.random() * 200
-          },
-          {
-            id: '0x' + Math.random().toString(16).substr(2, 40),
-            name: 'Top Derivative 2',
-            revenue: Math.random() * 150
-          }
-        ]
-      };
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      return mockAnalytics;
-    } catch (error) {
-      console.error('Failed to fetch IP analytics:', error);
-      throw new Error('Failed to fetch IP analytics');
-    }
-  }
-
-  // Utility method to validate IP ID format
   isValidIPId(ipId: string): boolean {
     return /^0x[a-fA-F0-9]{40}$/.test(ipId);
   }
 
-  // Method to get network info
   getNetworkInfo(): { name: string; chainId: string; explorer: string } {
     return {
       name: 'Story Aeneid Testnet',
-      chainId: this.chainId,
+      chainId: '1315',
       explorer: 'https://aeneid.storyscan.io'
     };
   }
